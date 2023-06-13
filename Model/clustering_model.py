@@ -49,7 +49,7 @@ def load_basic_data():
     basic_data.reset_index(drop = True, inplace = True)
     basic_data.to_csv('./data/basic_data.csv')
 
-    print('Basic data saved.')
+    print('Basic data file saved.')
     return basic_data
 
 
@@ -100,7 +100,7 @@ def load_historical_data(basic_data):
     historical_data.reset_index(drop = True, inplace = True)
     historical_data.to_csv('./data/historical_data.csv')
 
-    print('Historical data saved.')
+    print('Historical data file saved.')
     return historical_data
 
 
@@ -150,7 +150,7 @@ def load_changes_data(historical_data):
     # export changes data
     changes_data.to_csv('./data/changes_data.csv')
 
-    print('Changes data saved.')
+    print('Changes data file saved.')
     return changes_data
 
 
@@ -189,5 +189,5 @@ def load_clusters(changes_data):
     with open('./data/clusters.json', 'w') as json_file:
         json.dump(clusters, json_file, indent = 4)
 
-    print('Clusters saved.')
+    print('Clusters file saved.')
     return clusters
