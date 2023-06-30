@@ -1,85 +1,105 @@
 """ Import Modules and Config """
 
-import pandas as pd 
-import numpy as np 
+import pandas as pd
+import numpy as np
 from sklearn import cluster, covariance
 import json
 import warnings
 
-warnings.filterwarnings('ignore')
+warnings.filterwarnings("ignore")
 
-with open('./config.json', 'r') as json_file:
+with open("./config.json", "r") as json_file:
     config = json.load(json_file)
 
 
-def load_changes_data(historical_data):
-    """ Changes Data """
+def load_return_data(historical_data):
+    """Return Data"""
 
-    # import changes data
-    if config['update_changes_data'] == False:
+    # import return data
+    if config["update_return_data"] == False:
         try:
-            changes_data = pd.read_csv('./data/changes_data.csv', index_col = 'Unnamed: 0')
+            return_data = pd.read_csv("./data/return_data.csv")
         except FileNotFoundError:
-            print('Changes data file not found.')
+            print("Return data file not found.")
         else:
-            return changes_data
+            return return_data
 
-    changes_data = historical_data[['date', 'symbol', 'change']]
-    symbols_age = changes_data.groupby('symbol').count()['change']
-    
-    # keep symbols which have at least two years of changes data
-    changes_data = changes_data[historical_data['symbol'].isin(dict(symbols_age[symbols_age >= config['symbols_minimum_age']]))]
-    print(f'delete symbols which do not have at least {config["symbols_minimum_age"]} days of changes data: {[x for x in dict(symbols_age[symbols_age < config["symbols_minimum_age"]]).keys()]}')
+    return_data = historical_data[["date", "symbol", "return"]]
+    symbols_age = return_data.groupby("symbol").count()["return"]
 
-    # keep the last two years of changes data
-    changes_data = changes_data.groupby('symbol').head(config['symbols_minimum_age'])
+    # keep symbols which have at least two years of return data
+    return_data = return_data[
+        historical_data["symbol"].isin(
+            dict(symbols_age[symbols_age >= config["symbols_minimum_age"]])
+        )
+    ]
+    print(
+        f'delete symbols which do not have at least {config["symbols_minimum_age"]} days of return data: {[x for x in dict(symbols_age[symbols_age < config["symbols_minimum_age"]]).keys()]}'
+    )
 
-    # keep symbols which have the last date of changes data
-    symbols_last_date = changes_data.groupby('symbol').first()['date']
-    last_date = symbols_last_date['BTC']
-    changes_data = changes_data[historical_data['symbol'].isin(dict(symbols_last_date[symbols_last_date == last_date]))]
-    print(f'delete symbols which do not have the last day of changes data: {[x for x in dict(symbols_last_date[symbols_last_date != last_date]).keys()]}')
+    # keep the last two years of return data
+    return_data = return_data.groupby("symbol").head(config["symbols_minimum_age"])
 
-    # keep symbols which have the first date of changes data
-    symbols_first_date = changes_data.groupby('symbol').last()['date']
-    first_date = symbols_first_date['BTC']
-    changes_data = changes_data[historical_data['symbol'].isin(dict(symbols_first_date[symbols_first_date == first_date]))]
-    print(f'delete symbols which do not have the first day of changes data: {[x for x in dict(symbols_first_date[symbols_first_date != first_date]).keys()]}')
-    
-    #create the pivot table of changes data
-    changes_data = changes_data.pivot(index = 'date', columns = 'symbol')
-    changes_data = changes_data['change']
-    
-    changes_data.index.name = None
-    changes_data.columns.name = None
+    # keep symbols which have the last date of return data
+    symbols_last_date = return_data.groupby("symbol").first()["date"]
+    last_date = symbols_last_date["BTC"]
+    return_data = return_data[
+        historical_data["symbol"].isin(
+            dict(symbols_last_date[symbols_last_date == last_date])
+        )
+    ]
+    print(
+        f"delete symbols which do not have the last day of return data: {[x for x in dict(symbols_last_date[symbols_last_date != last_date]).keys()]}"
+    )
 
-    # export changes data
-    changes_data.to_csv('./data/changes_data.csv')
+    # keep symbols which have the first date of return data
+    symbols_first_date = return_data.groupby("symbol").last()["date"]
+    first_date = symbols_first_date["BTC"]
+    return_data = return_data[
+        historical_data["symbol"].isin(
+            dict(symbols_first_date[symbols_first_date == first_date])
+        )
+    ]
+    print(
+        f"delete symbols which do not have the first day of return data: {[x for x in dict(symbols_first_date[symbols_first_date != first_date]).keys()]}"
+    )
 
-    print('Changes data file saved.')
-    return changes_data
+    # create the pivot table of return data
+    return_data = return_data.pivot(index="date", columns="symbol")
+    return_data = return_data["return"]
+
+    return_data.index.name = None
+    return_data.columns.name = None
+
+    # export return data
+    return_data.to_csv("./data/return_data.csv", index=False)
+
+    print("return data file saved.")
+    return return_data
 
 
-def load_clusters_data(changes_data):
-    """ Clusters Data """
-    
+def load_clusters_data(return_data):
+    """Clusters Data"""
+
     # import clusters data
-    if config['update_clusters_data'] == False:
+    if config["update_clusters_data"] == False:
         try:
-            clusters_data = pd.read_csv('./data/clusters_data.csv', index_col = 'Unnamed: 0')
+            clusters_data = pd.read_csv("./data/clusters_data.csv")
         except FileNotFoundError:
-            print('Clusters data file not found.')
+            print("Clusters data file not found.")
         else:
             return clusters_data
 
     # create clustering data
-    symbols = changes_data.columns
-    clustering_data = np.array(changes_data / changes_data.std())
+    symbols = return_data.columns
+    clustering_data = np.array(return_data / return_data.std())
 
     # create clustering modol
     edge_model = covariance.GraphicalLassoCV()
     edge_model.fit(clustering_data)
-    cluster_centers_indices, labels = cluster.affinity_propagation(edge_model.covariance_, random_state = 1)
+    cluster_centers_indices, labels = cluster.affinity_propagation(
+        edge_model.covariance_, random_state=1
+    )
     n = labels.max() + 1
 
     # create clusters
@@ -89,14 +109,13 @@ def load_clusters_data(changes_data):
         clusters.append(sub_cluster)
 
     # create clusters data
-    clusters_data = pd.DataFrame(columns=['symbol', 'cluster'])
+    clusters_data = pd.DataFrame(columns=["symbol", "cluster"])
     for c in range(len(clusters)):
-        cluster = clusters[c]
-        for symbol in cluster:
-            clusters_data.loc[len(clusters_data)] = [symbol, str(c)]    
+        for symbol in clusters[c]:
+            clusters_data.loc[len(clusters_data)] = [symbol, str(c)]
 
     # export clusters data
-    clusters_data.to_csv('./data/clusters_data.csv')
+    clusters_data.to_csv("./data/clusters_data.csv", index=False)
 
-    print('Clusters data file saved.')
+    print("Clusters data file saved.")
     return clusters_data
