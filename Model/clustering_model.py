@@ -60,18 +60,17 @@ def load_changes_data(historical_data):
     return changes_data
 
 
-def load_clusters(changes_data):
-    """ Clusters """
+def load_clusters_data(changes_data):
+    """ Clusters Data """
     
-    # import clusters
-    if config['update_clusters'] == False:
+    # import clusters data
+    if config['update_clusters_data'] == False:
         try:
-            with open('./data/clusters.json', 'r') as json_file:
-                clusters = json.load(json_file)
+            clusters_data = pd.read_csv('./data/clusters_data.csv', index_col = 'Unnamed: 0')
         except FileNotFoundError:
-            print('Clusters file not found.')
+            print('Clusters data file not found.')
         else:
-            return clusters
+            return clusters_data
 
     # create clustering data
     symbols = changes_data.columns
@@ -89,9 +88,15 @@ def load_clusters(changes_data):
         sub_cluster = list(symbols[labels == i])
         clusters.append(sub_cluster)
 
-    # export clusters
-    with open('./data/clusters.json', 'w') as json_file:
-        json.dump(clusters, json_file, indent = 4)
+    # create clusters data
+    clusters_data = pd.DataFrame(columns=['symbol', 'cluster'])
+    for c in range(len(clusters)):
+        cluster = clusters[c]
+        for symbol in cluster:
+            clusters_data.loc[len(clusters_data)] = [symbol, str(c)]    
 
-    print('Clusters file saved.')
-    return clusters
+    # export clusters data
+    clusters_data.to_csv('./data/clusters_data.csv')
+
+    print('Clusters data file saved.')
+    return clusters_data

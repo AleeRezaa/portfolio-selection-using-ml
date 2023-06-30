@@ -5,5 +5,5 @@
     "update_basic_data": false,
     "update_historical_data": false,
     "update_changes_data": false,
-    "update_clusters": false
+    "update_clusters_data": false
 }
