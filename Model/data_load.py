@@ -16,7 +16,7 @@ def load_basic_data():
     """Basic Data"""
 
     # import basic data
-    if config["update_basic_data"] == False:
+    if config["update_data_load"] == False:
         try:
             basic_data = pd.read_csv("./data/basic_data.csv")
         except FileNotFoundError:
@@ -53,7 +53,7 @@ def load_historical_data(basic_data):
     """Historical Data"""
 
     # import historical data
-    if config["update_historical_data"] == False:
+    if config["update_data_load"] == False:
         try:
             historical_data = pd.read_csv("./data/historical_data.csv")
         except FileNotFoundError:

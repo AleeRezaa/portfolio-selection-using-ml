@@ -16,7 +16,7 @@ def load_return_data(historical_data):
     """Return Data"""
 
     # import return data
-    if config["update_return_data"] == False:
+    if config["update_clustering_model"] == False:
         try:
             return_data = pd.read_csv("./data/return_data.csv")
         except FileNotFoundError:
@@ -82,7 +82,7 @@ def load_clusters_data(return_data):
     """Clusters Data"""
 
     # import clusters data
-    if config["update_clusters_data"] == False:
+    if config["update_clustering_model"] == False:
         try:
             clusters_data = pd.read_csv("./data/clusters_data.csv")
         except FileNotFoundError:

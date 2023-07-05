@@ -2,8 +2,6 @@
     "number_of_cryptocurrencies": 500,
     "symbols_minimum_age": 730,
     "timeout": 10,
-    "update_basic_data": false,
-    "update_historical_data": false,
-    "update_return_data": false,
-    "update_clusters_data": false
+    "update_data_load": false,
+    "update_clustering_model": false
 }
