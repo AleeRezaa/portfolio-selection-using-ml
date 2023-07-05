@@ -48,7 +48,7 @@ def load_basic_data():
     return basic_data
 
 
-# TODO: delete rows with market cap = 0
+# TODO: delete rows with market cap = 0 and volume = 0
 def load_historical_data(basic_data):
     """Historical Data"""
 
