@@ -12,6 +12,7 @@ with open("./config.json", "r") as json_file:
     config = json.load(json_file)
 
 
+# TODO: add to_date
 def load_return_data(historical_data):
     """Return Data"""
 
