@@ -1,2 +1,4 @@
 Model/data/
-Model/__pycache__
+Model/__pycache__/
+References/Articles/
+References/Theses/
