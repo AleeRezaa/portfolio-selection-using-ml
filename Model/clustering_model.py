@@ -79,6 +79,8 @@ def load_return_data(historical_data):
     return return_data
 
 
+# https://www.relataly.com/crypto-market-cluster-analysis-using-affinity-propagation-python/8114/
+# Affinity Propagation انتشار وابستگی
 def load_clusters_data(return_data):
     """Clusters Data"""
 

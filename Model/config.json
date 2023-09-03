@@ -1,5 +1,5 @@
 {
-    "number_of_cryptocurrencies": 500,
+    "number_of_cryptocurrencies": 300,
     "symbols_minimum_age": 730,
     "timeout": 10,
     "update_data_load": false,

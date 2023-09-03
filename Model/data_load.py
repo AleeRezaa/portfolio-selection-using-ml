@@ -36,8 +36,8 @@ def load_basic_data():
         (basic_data["isActive"] == 1)
         & (basic_data["dateAdded"].apply(lambda x: int(x[:4])) < 2021)
         & (basic_data["lastUpdated"].apply(lambda x: int(x[:4])) > 2022)
-        & (basic_data["tags"].apply(lambda x: "stablecoin" not in x))
-        & (basic_data["marketPairCount"] > 5)  # TODO: Add Tether
+        # & (basic_data["tags"].apply(lambda x: "stablecoin" not in x))  # TODO: Add Tether
+        & (basic_data["marketPairCount"] > 5)
     ]
 
     # export basic data
