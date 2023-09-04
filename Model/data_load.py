@@ -1,5 +1,3 @@
-""" Import Modules """
-
 import json
 import warnings
 
@@ -14,7 +12,7 @@ HISTORICAL_DATA_PATH = "./data/historical_data.csv"
 TIMEOUT = 10
 
 
-def load_basic_data(update_data_load, number_of_cryptocurrencies):
+def load_basic_data(number_of_cryptocurrencies, update_data_load):
     """Basic Data"""
 
     # import basic data
@@ -50,7 +48,7 @@ def load_basic_data(update_data_load, number_of_cryptocurrencies):
     return basic_data
 
 
-def load_historical_data(basic_data, update_data_load, history_days):
+def load_historical_data(basic_data, history_days, update_data_load):
     """Historical Data"""
 
     # import historical data

@@ -5,6 +5,6 @@
     "update": {
         "data_load": false,
         "clustering_model": false,
-        "regression_model": true
+        "regression_model": false
     }
 }
