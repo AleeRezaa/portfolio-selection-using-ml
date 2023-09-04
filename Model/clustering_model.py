@@ -1,69 +1,31 @@
-""" Import Modules and Config """
+""" Import Modules """
 
-import pandas as pd
-import numpy as np
-from sklearn import cluster, covariance
-import json
 import warnings
+
+import numpy as np
+import pandas as pd
+from sklearn import cluster, covariance
 
 warnings.filterwarnings("ignore")
 
-with open("./config.json", "r") as json_file:
-    config = json.load(json_file)
+RETURN_DATA_PATH = "./data/return_data.csv"
+CLUSTERS_DATA_PATH = "./data/clusters_data.csv"
 
 
 # TODO: add to_date
-def load_return_data(historical_data):
+def load_return_data(historical_data, update_clustering_model):
     """Return Data"""
 
     # import return data
-    if config["update_clustering_model"] == False:
+    if update_clustering_model == False:
         try:
-            return_data = pd.read_csv("./data/return_data.csv")
+            return_data = pd.read_csv(RETURN_DATA_PATH)
         except FileNotFoundError:
             print("Return data file not found.")
         else:
             return return_data
 
     return_data = historical_data[["date", "symbol", "return"]]
-    symbols_age = return_data.groupby("symbol").count()["return"]
-
-    # keep symbols which have at least two years of return data
-    return_data = return_data[
-        historical_data["symbol"].isin(
-            dict(symbols_age[symbols_age >= config["symbols_minimum_age"]])
-        )
-    ]
-    print(
-        f'delete symbols which do not have at least {config["symbols_minimum_age"]} days of return data: {[x for x in dict(symbols_age[symbols_age < config["symbols_minimum_age"]]).keys()]}'
-    )
-
-    # keep the last two years of return data
-    return_data = return_data.groupby("symbol").head(config["symbols_minimum_age"])
-
-    # keep symbols which have the last date of return data
-    symbols_last_date = return_data.groupby("symbol").first()["date"]
-    last_date = symbols_last_date["BTC"]
-    return_data = return_data[
-        historical_data["symbol"].isin(
-            dict(symbols_last_date[symbols_last_date == last_date])
-        )
-    ]
-    print(
-        f"delete symbols which do not have the last day of return data: {[x for x in dict(symbols_last_date[symbols_last_date != last_date]).keys()]}"
-    )
-
-    # keep symbols which have the first date of return data
-    symbols_first_date = return_data.groupby("symbol").last()["date"]
-    first_date = symbols_first_date["BTC"]
-    return_data = return_data[
-        historical_data["symbol"].isin(
-            dict(symbols_first_date[symbols_first_date == first_date])
-        )
-    ]
-    print(
-        f"delete symbols which do not have the first day of return data: {[x for x in dict(symbols_first_date[symbols_first_date != first_date]).keys()]}"
-    )
 
     # create the pivot table of return data
     return_data = return_data.pivot(index="date", columns="symbol")
@@ -73,7 +35,7 @@ def load_return_data(historical_data):
     return_data.columns.name = None
 
     # export return data
-    return_data.to_csv("./data/return_data.csv", index=False)
+    return_data.to_csv(RETURN_DATA_PATH, index=False)
 
     print("return data file saved.")
     return return_data
@@ -81,13 +43,13 @@ def load_return_data(historical_data):
 
 # https://www.relataly.com/crypto-market-cluster-analysis-using-affinity-propagation-python/8114/
 # Affinity Propagation انتشار وابستگی
-def load_clusters_data(return_data):
+def load_clusters_data(return_data, update_clustering_model):
     """Clusters Data"""
 
     # import clusters data
-    if config["update_clustering_model"] == False:
+    if update_clustering_model == False:
         try:
-            clusters_data = pd.read_csv("./data/clusters_data.csv")
+            clusters_data = pd.read_csv(CLUSTERS_DATA_PATH)
         except FileNotFoundError:
             print("Clusters data file not found.")
         else:
@@ -115,10 +77,13 @@ def load_clusters_data(return_data):
     clusters_data = pd.DataFrame(columns=["symbol", "cluster"])
     for c in range(len(clusters)):
         for symbol in clusters[c]:
-            clusters_data.loc[len(clusters_data)] = [symbol, str(c)]
+            clusters_data.loc[len(clusters_data)] = [
+                symbol,
+                str(c).zfill(len(str(n - 1))),
+            ]
 
     # export clusters data
-    clusters_data.to_csv("./data/clusters_data.csv", index=False)
+    clusters_data.to_csv(CLUSTERS_DATA_PATH, index=False)
 
     print("Clusters data file saved.")
     return clusters_data

@@ -1,24 +1,26 @@
-""" Import Modules and Config """
+""" Import Modules """
 
-from cryptocmd import CmcScraper
-import pandas as pd
-import requests
 import json
 import warnings
 
+import pandas as pd
+import requests
+from cryptocmd import CmcScraper
+
 warnings.filterwarnings("ignore")
 
-with open("./config.json", "r") as json_file:
-    config = json.load(json_file)
+BASIC_DATA_PATH = "./data/basic_data.csv"
+HISTORICAL_DATA_PATH = "./data/historical_data.csv"
+TIMEOUT = 10
 
 
-def load_basic_data():
+def load_basic_data(update_data_load, number_of_cryptocurrencies):
     """Basic Data"""
 
     # import basic data
-    if config["update_data_load"] == False:
+    if update_data_load == False:
         try:
-            basic_data = pd.read_csv("./data/basic_data.csv")
+            basic_data = pd.read_csv(BASIC_DATA_PATH)
         except FileNotFoundError:
             print("Basic data file not found.")
         else:
@@ -26,8 +28,8 @@ def load_basic_data():
 
     # get basic data
     print("Fetching basic data...")
-    url = f'https://api.coinmarketcap.com/data-api/v3/cryptocurrency/listing?start=1&limit={config["number_of_cryptocurrencies"]}&sortBy=market_cap&sortType=desc&convert=USD&cryptoType=all&tagType=all&audited=false'
-    response = requests.get(url, timeout=config["timeout"])
+    url = f"https://api.coinmarketcap.com/data-api/v3/cryptocurrency/listing?start=1&limit={number_of_cryptocurrencies}&sortBy=market_cap&sortType=desc&convert=USD&cryptoType=all&tagType=all&audited=false"
+    response = requests.get(url, timeout=TIMEOUT)
     data = json.loads(response.text)
     basic_data = pd.DataFrame(data["data"]["cryptoCurrencyList"])
 
@@ -42,20 +44,20 @@ def load_basic_data():
 
     # export basic data
     basic_data.reset_index(drop=True, inplace=True)
-    basic_data.to_csv("./data/basic_data.csv", index=False)
+    basic_data.to_csv(BASIC_DATA_PATH, index=False)
 
     print("Basic data file saved.")
     return basic_data
 
 
 # TODO: delete rows with market cap = 0 and volume = 0
-def load_historical_data(basic_data):
+def load_historical_data(basic_data, update_data_load, history_days):
     """Historical Data"""
 
     # import historical data
-    if config["update_data_load"] == False:
+    if update_data_load == False:
         try:
-            historical_data = pd.read_csv("./data/historical_data.csv")
+            historical_data = pd.read_csv(HISTORICAL_DATA_PATH)
         except FileNotFoundError:
             print("Historical data file not found.")
         else:
@@ -76,6 +78,7 @@ def load_historical_data(basic_data):
         print(f"Fetching historical data for {symbol} ({n}/{number_of_symbols})")
         scraper = CmcScraper(symbol)
 
+        # TODO: adding tries for connection error
         try:
             symbol_historical_data = scraper.get_dataframe()
         except:
@@ -106,9 +109,46 @@ def load_historical_data(basic_data):
 
         historical_data = pd.concat([historical_data, symbol_historical_data])
 
+    symbols_age = historical_data.groupby("symbol").count()["return"]
+
+    # keep symbols which have at least n days history of return data
+    historical_data = historical_data[
+        historical_data["symbol"].isin(dict(symbols_age[symbols_age >= history_days]))
+    ]
+    print(
+        f"delete symbols which do not have at least {history_days} days of return data: {[x for x in dict(symbols_age[symbols_age < history_days]).keys()]}"
+    )
+
+    # keep the last n days history of return data
+    historical_data = historical_data.groupby("symbol").head(history_days)
+
+    # keep symbols which have the last date of return data
+    symbols_last_date = historical_data.groupby("symbol").first()["date"]
+    last_date = symbols_last_date["BTC"]
+    historical_data = historical_data[
+        historical_data["symbol"].isin(
+            dict(symbols_last_date[symbols_last_date == last_date])
+        )
+    ]
+    print(
+        f"delete symbols which do not have the last day of return data: {[x for x in dict(symbols_last_date[symbols_last_date != last_date]).keys()]}"
+    )
+
+    # keep symbols which have the first date of return data
+    symbols_first_date = historical_data.groupby("symbol").last()["date"]
+    first_date = symbols_first_date["BTC"]
+    historical_data = historical_data[
+        historical_data["symbol"].isin(
+            dict(symbols_first_date[symbols_first_date == first_date])
+        )
+    ]
+    print(
+        f"delete symbols which do not have the first day of return data: {[x for x in dict(symbols_first_date[symbols_first_date != first_date]).keys()]}"
+    )
+
     # export historical data
     historical_data.reset_index(drop=True, inplace=True)
-    historical_data.to_csv("./data/historical_data.csv", index=False)
+    historical_data.to_csv(HISTORICAL_DATA_PATH, index=False)
 
     print("Historical data file saved.")
     return historical_data
