@@ -12,7 +12,6 @@ RETURN_DATA_PATH = "./data/return_data.csv"
 CLUSTERS_DATA_PATH = "./data/clusters_data.csv"
 
 
-# TODO: add to_date
 def load_return_data(historical_data, update_clustering_model):
     """Return Data"""
 

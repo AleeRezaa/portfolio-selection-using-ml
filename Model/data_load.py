@@ -38,7 +38,7 @@ def load_basic_data(update_data_load, number_of_cryptocurrencies):
         (basic_data["isActive"] == 1)
         & (basic_data["dateAdded"].apply(lambda x: int(x[:4])) < 2021)
         & (basic_data["lastUpdated"].apply(lambda x: int(x[:4])) > 2022)
-        # & (basic_data["tags"].apply(lambda x: "stablecoin" not in x))  # TODO: Add Tether
+        # & (basic_data["tags"].apply(lambda x: "stablecoin" not in x))
         & (basic_data["marketPairCount"] > 5)
     ]
 
@@ -50,7 +50,6 @@ def load_basic_data(update_data_load, number_of_cryptocurrencies):
     return basic_data
 
 
-# TODO: delete rows with market cap = 0 and volume = 0
 def load_historical_data(basic_data, update_data_load, history_days):
     """Historical Data"""
 
@@ -78,7 +77,6 @@ def load_historical_data(basic_data, update_data_load, history_days):
         print(f"Fetching historical data for {symbol} ({n}/{number_of_symbols})")
         scraper = CmcScraper(symbol)
 
-        # TODO: adding tries for connection error
         try:
             symbol_historical_data = scraper.get_dataframe()
         except:
