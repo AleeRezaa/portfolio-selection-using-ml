@@ -12,13 +12,11 @@ warnings.filterwarnings("ignore")
 REGRESSION_DATA_PATH = "./data/regression_data.csv"
 
 
-def load_regression_data(
-    historical_data, clusters_data, future_days, update_regression_model
-):
+def load_regression_data(historical_data, clusters_data, future_days, update):
     """Regression Data"""
 
     # import regression data
-    if update_regression_model == False:
+    if update == False:
         try:
             regression_data = pd.read_csv(REGRESSION_DATA_PATH)
         except FileNotFoundError:
@@ -114,7 +112,7 @@ def load_regression_data(
     return regression_data
 
 
-# def load_prediction_data(regression_data, model, update_regression_model):
+# def load_prediction_data(regression_data, model, update):
 #     x = regression_data.loc[:, 'open':]
 #     y = regression_data[['future_return', 'future_risk']]
 #     train_x, test_x, train_y, test_y = train_test_split(x, y, test_size = 0.2, random_state = 4)

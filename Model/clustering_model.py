@@ -10,11 +10,11 @@ RETURN_DATA_PATH = "./data/return_data.csv"
 CLUSTERS_DATA_PATH = "./data/clusters_data.csv"
 
 
-def load_return_data(historical_data, update_clustering_model):
+def load_return_data(selected_data, update=False):
     """Return Data"""
 
     # import return data
-    if update_clustering_model == False:
+    if update == False:
         try:
             return_data = pd.read_csv(RETURN_DATA_PATH)
         except FileNotFoundError:
@@ -22,7 +22,7 @@ def load_return_data(historical_data, update_clustering_model):
         else:
             return return_data
 
-    return_data = historical_data[["date", "symbol", "return"]]
+    return_data = selected_data[["date", "symbol", "return"]]
 
     # create the pivot table of return data
     return_data = return_data.pivot(index="date", columns="symbol")
@@ -40,11 +40,11 @@ def load_return_data(historical_data, update_clustering_model):
 
 # https://www.relataly.com/crypto-market-cluster-analysis-using-affinity-propagation-python/8114/
 # Affinity Propagation انتشار وابستگی
-def load_clusters_data(return_data, update_clustering_model):
+def load_clusters_data(return_data, update):
     """Clusters Data"""
 
     # import clusters data
-    if update_clustering_model == False:
+    if update == False:
         try:
             clusters_data = pd.read_csv(CLUSTERS_DATA_PATH)
         except FileNotFoundError:
