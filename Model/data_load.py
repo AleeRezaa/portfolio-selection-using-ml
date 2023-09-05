@@ -18,7 +18,7 @@ SLEEP = 5
 
 
 def load_basic_data(
-    selected_symbols=10000,
+    selected_symbols=100,
     max_date_added_year=2020,
     min_last_update_year=2023,
     min_market_pairs=6,
@@ -136,6 +136,10 @@ def load_historical_data(symbols_list, update=False) -> pd.DataFrame:
             )
 
             historical_data = pd.concat([historical_data, symbol_historical_data])
+
+    historical_data = historical_data[
+        (historical_data["marketcap"] > 0) & (historical_data["volume"] > 0)
+    ]
 
     # export historical data
     historical_data.reset_index(drop=True, inplace=True)
