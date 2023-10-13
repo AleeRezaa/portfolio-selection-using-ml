@@ -80,11 +80,9 @@ def load_historical_data(symbols_list, update=False) -> pd.DataFrame:
 
     # loop in symbols and get historical data
     for symbol in symbols_list:
+        n += 1
         if "," in symbol:
             symbol = symbol.split(",")[0]
-
-        n += 1
-
         scraper = CmcScraper(symbol)
 
         t = 0

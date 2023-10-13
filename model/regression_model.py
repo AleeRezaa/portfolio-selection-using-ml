@@ -12,7 +12,7 @@ warnings.filterwarnings("ignore")
 REGRESSION_DATA_PATH = "./data/regression_data.csv"
 
 
-def load_regression_data(historical_data, clusters_data, future_days, update):
+def load_regression_data(selected_data, clusters_data, future_days=30, update=False):
     """Regression Data"""
 
     # import regression data
@@ -24,10 +24,23 @@ def load_regression_data(historical_data, clusters_data, future_days, update):
         else:
             return regression_data
 
-    regression_data = (
-        historical_data.merge(  # historical_data[historical_data['symbol'] == 'BTC']
-            clusters_data, on="symbol", how="inner"
-        )
+    # add clusters
+    regression_data = selected_data.merge(clusters_data, on="symbol", how="inner")
+
+    # add date
+    regression_data["date"] = pd.to_datetime(regression_data["date"])
+    regression_data["year"] = regression_data["date"].dt.year
+    regression_data["month_sin"] = np.sin(
+        2 * np.pi * regression_data["date"].dt.month / 12
+    )
+    regression_data["month_cos"] = np.cos(
+        2 * np.pi * regression_data["date"].dt.month / 12
+    )
+    regression_data["day_sin"] = np.sin(
+        2 * np.pi * regression_data["date"].dt.month / 31
+    )
+    regression_data["day_cos"] = np.cos(
+        2 * np.pi * regression_data["date"].dt.month / 31
     )
 
     # obtain future return and risk
@@ -62,6 +75,11 @@ def load_regression_data(historical_data, clusters_data, future_days, update):
                 "marketcap",
                 "future_return",
                 "future_risk",
+                "year",
+                "month_sin",
+                "month_cos",
+                "day_sin",
+                "day_cos",
             ]
         ]
         .groupby("symbol")
@@ -83,6 +101,11 @@ def load_regression_data(historical_data, clusters_data, future_days, update):
                 "return",
                 "volume",
                 "marketcap",
+                "year",
+                "month_sin",
+                "month_cos",
+                "day_sin",
+                "day_cos",
             ]
         ]
         / regression_max_data[
@@ -97,14 +120,21 @@ def load_regression_data(historical_data, clusters_data, future_days, update):
                 "return",
                 "volume",
                 "marketcap",
+                "year",
+                "month_sin",
+                "month_cos",
+                "day_sin",
+                "day_cos",
             ]
         ]
     )
+
     regression_data = regression_data[["symbol", "cluster"]].join(
         regression_normalized_data
     )
-    regression_data["cluster"] = regression_data["cluster"].astype("str")
 
+    # get dummies of symbols and clusters
+    regression_data["cluster"] = regression_data["cluster"].astype("str")
     regression_data = pd.get_dummies(regression_data)
 
     # export regression data
