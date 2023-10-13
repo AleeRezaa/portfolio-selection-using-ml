@@ -22,7 +22,7 @@ def load_return_data(selected_data, update=False):
         else:
             return return_data
 
-    return_data = selected_data[["date", "symbol", "return"]]
+    return_data = selected_data[["date", "symbol", "return"]].copy()
 
     # create the pivot table of return data
     return_data = return_data.pivot(index="date", columns="symbol")
