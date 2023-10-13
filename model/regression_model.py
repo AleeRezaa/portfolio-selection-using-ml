@@ -12,7 +12,14 @@ warnings.filterwarnings("ignore")
 REGRESSION_DATA_PATH = "./data/regression_data.csv"
 
 
-def load_regression_data(selected_data, clusters_data, future_days=30, update=False):
+def load_regression_data(
+    selected_data,
+    clusters_data,
+    future_days=30,
+    normalize_input=True,
+    normalize_output=True,
+    update=False,
+):
     """Regression Data"""
 
     # import regression data
@@ -43,6 +50,77 @@ def load_regression_data(selected_data, clusters_data, future_days=30, update=Fa
         2 * np.pi * regression_data["date"].dt.month / 31
     )
 
+    # normalize input
+    if normalize_input:
+        input_max_data = (
+            regression_data[
+                [
+                    "symbol",
+                    "open",
+                    "high",
+                    "low",
+                    "close",
+                    "avg",
+                    "return",
+                    "volume",
+                    "marketcap",
+                    "year",
+                    "month_sin",
+                    "month_cos",
+                    "day_sin",
+                    "day_cos",
+                ]
+            ]
+            .groupby("symbol")
+            .max()
+        )
+        input_max_data = regression_data[["symbol"]].merge(
+            input_max_data, on="symbol", how="left"
+        )
+        input_normalized_data = (
+            regression_data[
+                [
+                    "open",
+                    "high",
+                    "low",
+                    "close",
+                    "avg",
+                    "return",
+                    "volume",
+                    "marketcap",
+                    "year",
+                    "month_sin",
+                    "month_cos",
+                    "day_sin",
+                    "day_cos",
+                ]
+            ]
+            / input_max_data[
+                [
+                    "open",
+                    "high",
+                    "low",
+                    "close",
+                    "avg",
+                    "return",
+                    "volume",
+                    "marketcap",
+                    "year",
+                    "month_sin",
+                    "month_cos",
+                    "day_sin",
+                    "day_cos",
+                ]
+            ]
+        )
+        regression_data = regression_data[["symbol", "cluster"]].join(
+            input_normalized_data
+        )
+
+    # get dummies of symbols and clusters
+    regression_data["cluster"] = regression_data["cluster"].astype("str")
+    regression_data = regression_data[["symbol"]].join(pd.get_dummies(regression_data))
+
     # obtain future return and risk
     regression_data["future_return"] = (
         (1 + regression_data["return"])
@@ -60,82 +138,41 @@ def load_regression_data(selected_data, clusters_data, future_days=30, update=Fa
     regression_data.dropna(inplace=True)  # subset='future_return'
     regression_data.reset_index(drop=True, inplace=True)
 
-    # normalize data
-    regression_max_data = (
-        regression_data[
-            [
-                "symbol",
-                "open",
-                "high",
-                "low",
-                "close",
-                "avg",
-                "return",
-                "volume",
-                "marketcap",
-                "future_return",
-                "future_risk",
-                "year",
-                "month_sin",
-                "month_cos",
-                "day_sin",
-                "day_cos",
+    # normalize output
+    if normalize_output:
+        output_max_data = (
+            regression_data[
+                [
+                    "symbol",
+                    "future_return",
+                    "future_risk",
+                ]
             ]
-        ]
-        .groupby("symbol")
-        .max()
-    )
-    regression_max_data = regression_data[["symbol"]].merge(
-        regression_max_data, on="symbol", how="left"
-    )
-    regression_normalized_data = (
+            .groupby("symbol")
+            .max()
+        )
+        output_max_data = regression_data[["symbol"]].merge(
+            output_max_data, on="symbol", how="left"
+        )
         regression_data[
             [
                 "future_return",
                 "future_risk",
-                "open",
-                "high",
-                "low",
-                "close",
-                "avg",
-                "return",
-                "volume",
-                "marketcap",
-                "year",
-                "month_sin",
-                "month_cos",
-                "day_sin",
-                "day_cos",
             ]
-        ]
-        / regression_max_data[
-            [
-                "future_return",
-                "future_risk",
-                "open",
-                "high",
-                "low",
-                "close",
-                "avg",
-                "return",
-                "volume",
-                "marketcap",
-                "year",
-                "month_sin",
-                "month_cos",
-                "day_sin",
-                "day_cos",
+        ] = (
+            regression_data[
+                [
+                    "future_return",
+                    "future_risk",
+                ]
             ]
-        ]
-    )
-
-    regression_data = regression_data[["symbol", "cluster"]].join(
-        regression_normalized_data
-    )
-
-    # get dummies of symbols and clusters
-    regression_data["cluster"] = regression_data["cluster"].astype("str")
-    regression_data = pd.get_dummies(regression_data)
+            / output_max_data[
+                [
+                    "future_return",
+                    "future_risk",
+                ]
+            ]
+        )
 
     # export regression data
     regression_data.to_csv(REGRESSION_DATA_PATH, index=False)
