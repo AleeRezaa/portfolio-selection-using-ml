@@ -10,14 +10,13 @@ from sklearn.model_selection import train_test_split
 warnings.filterwarnings("ignore")
 
 REGRESSION_DATA_PATH = "./data/regression_data.csv"
+PREDICTION_DATA_PATH = "./data/prediction_data.csv"
 
 
 def load_regression_data(
     selected_data,
     clusters_data,
     future_days=30,
-    normalize_input=True,
-    normalize_output=True,
     update=False,
 ):
     """Regression Data"""
@@ -51,71 +50,69 @@ def load_regression_data(
     )
 
     # normalize input
-    if normalize_input:
-        input_max_data = (
-            regression_data[
-                [
-                    "symbol",
-                    "open",
-                    "high",
-                    "low",
-                    "close",
-                    "avg",
-                    "return",
-                    "volume",
-                    "marketcap",
-                    "year",
-                    "month_sin",
-                    "month_cos",
-                    "day_sin",
-                    "day_cos",
-                ]
+    input_max_data = (
+        regression_data[
+            [
+                "symbol",
+                "open",
+                "high",
+                "low",
+                "close",
+                "avg",
+                "return",
+                "volume",
+                "marketcap",
+                "year",
+                "month_sin",
+                "month_cos",
+                "day_sin",
+                "day_cos",
             ]
-            .groupby("symbol")
-            .max()
-        )
-        input_max_data = regression_data[["symbol"]].merge(
-            input_max_data, on="symbol", how="left"
-        )
-        input_normalized_data = (
-            regression_data[
-                [
-                    "open",
-                    "high",
-                    "low",
-                    "close",
-                    "avg",
-                    "return",
-                    "volume",
-                    "marketcap",
-                    "year",
-                    "month_sin",
-                    "month_cos",
-                    "day_sin",
-                    "day_cos",
-                ]
+        ]
+        .groupby("symbol")
+        .max()
+    )
+    input_max_data = regression_data[["symbol"]].merge(
+        input_max_data, on="symbol", how="left"
+    )
+    input_normalized_data = (
+        regression_data[
+            [
+                "open",
+                "high",
+                "low",
+                "close",
+                "avg",
+                "return",
+                "volume",
+                "marketcap",
+                "year",
+                "month_sin",
+                "month_cos",
+                "day_sin",
+                "day_cos",
             ]
-            / input_max_data[
-                [
-                    "open",
-                    "high",
-                    "low",
-                    "close",
-                    "avg",
-                    "return",
-                    "volume",
-                    "marketcap",
-                    "year",
-                    "month_sin",
-                    "month_cos",
-                    "day_sin",
-                    "day_cos",
-                ]
+        ]
+        / input_max_data[
+            [
+                "open",
+                "high",
+                "low",
+                "close",
+                "avg",
+                "return",
+                "volume",
+                "marketcap",
+                "year",
+                "month_sin",
+                "month_cos",
+                "day_sin",
+                "day_cos",
             ]
-        )
-        regression_data = regression_data[["symbol", "cluster"]].join(
-            input_normalized_data
-        )
+        ]
+    )
+    input_normalized_data.columns = input_normalized_data.columns + "_n"
+    regression_data = regression_data.join(input_normalized_data)
 
     # get dummies of symbols and clusters
     regression_data["cluster"] = regression_data["cluster"].astype("str")
@@ -123,79 +120,69 @@ def load_regression_data(
 
     # obtain future return and risk
     regression_data["future_return"] = (
-        (1 + regression_data["return"])
+        (1 + regression_data["return_n"])
         .rolling(window=future_days)
         .apply(np.prod, raw=True)
         - 1
     ).shift(1)
     regression_data["future_risk"] = (
-        regression_data["return"].rolling(window=future_days).agg(np.var)
+        regression_data["return_n"].rolling(window=future_days).agg(np.var)
     )
     regression_data.loc[
         regression_data.groupby("symbol").cumcount() < future_days,
         ["future_return", "future_risk"],
     ] = np.nan
-    regression_data.dropna(inplace=True)  # subset='future_return'
+    # regression_data.dropna(inplace=True)  # subset='future_return'
     regression_data.reset_index(drop=True, inplace=True)
-
-    # normalize output
-    if normalize_output:
-        output_max_data = (
-            regression_data[
-                [
-                    "symbol",
-                    "future_return",
-                    "future_risk",
-                ]
-            ]
-            .groupby("symbol")
-            .max()
-        )
-        output_max_data = regression_data[["symbol"]].merge(
-            output_max_data, on="symbol", how="left"
-        )
-        regression_data[
-            [
-                "future_return",
-                "future_risk",
-            ]
-        ] = (
-            regression_data[
-                [
-                    "future_return",
-                    "future_risk",
-                ]
-            ]
-            / output_max_data[
-                [
-                    "future_return",
-                    "future_risk",
-                ]
-            ]
-        )
 
     # export regression data
     regression_data.to_csv(REGRESSION_DATA_PATH, index=False)
     return regression_data
 
 
-# def load_prediction_data(regression_data, model, update):
-#     x = regression_data.loc[:, 'open':]
-#     y = regression_data[['future_return', 'future_risk']]
-#     train_x, test_x, train_y, test_y = train_test_split(x, y, test_size = 0.2, random_state = 4)
+def load_prediction_data(regression_data, model, update=False):
+    # import regression data
+    if update == False:
+        try:
+            prediction_data = pd.read_csv(PREDICTION_DATA_PATH)
+        except FileNotFoundError:
+            print("Prediction data file not found.")
+        else:
+            return prediction_data
 
-#     match model:
-#         case "linear_regression":
-#             regr = linear_model.LinearRegression()
-#         case "random_forest_regressor":
-#             regr = RandomForestRegressor(n_estimators=100)
-#         case _:
-#             raise ValueError("Wrong model entered.")
+    prediction_data = regression_data.groupby("symbol").first().reset_index()
+    prediction_data.drop(columns=["future_return", "future_risk"], inplace=True)
 
-#     regr.fit(train_x, train_y)
+    regression_data.dropna(inplace=True)
 
-#     train_y_ = regr.predict(train_x)
-#     print(f'Train R2: {(100 * r2_score(train_y, train_y_)):.2f}%')
+    x = regression_data.loc[:, "open_n" : regression_data.columns[-3]]
+    y = regression_data[["future_return", "future_risk"]]
+    train_x, test_x, train_y, test_y = train_test_split(
+        x, y, test_size=0.2, random_state=4
+    )
 
-#     test_y_ = regr.predict(test_x)
-#     print(f'Test R2: {(100 * r2_score(test_y, test_y_)):.2f}%')
+    match model:
+        case "linear_regression":
+            regr = linear_model.LinearRegression()
+        case "random_forest_regressor":
+            regr = RandomForestRegressor(n_estimators=100)
+        case _:
+            raise ValueError("Wrong model entered.")
+
+    regr.fit(train_x, train_y)
+
+    train_y_ = regr.predict(train_x)
+    print(f"Train R2: {(100 * r2_score(train_y, train_y_)):.2f}%")
+
+    test_y_ = regr.predict(test_x)
+    print(f"Test R2: {(100 * r2_score(test_y, test_y_)):.2f}%")
+
+    x_pred = prediction_data.loc[:, "open_n":]
+    y_pred = regr.predict(x_pred)
+    prediction_data = prediction_data.join(
+        pd.DataFrame(y_pred, columns=["future_return", "future_risk"])
+    )
+
+    # export regression data
+    prediction_data.to_csv(PREDICTION_DATA_PATH, index=False)
+    return prediction_data
