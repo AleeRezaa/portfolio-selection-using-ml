@@ -116,7 +116,9 @@ def load_regression_data(
 
     # get dummies of symbols and clusters
     regression_data["cluster"] = regression_data["cluster"].astype("str")
-    regression_data = regression_data[["symbol"]].join(pd.get_dummies(regression_data))
+    regression_data = regression_data[["symbol", "cluster"]].join(
+        pd.get_dummies(regression_data)
+    )
 
     # obtain future return and risk
     regression_data["future_return"] = (
