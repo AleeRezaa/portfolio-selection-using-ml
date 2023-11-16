@@ -143,7 +143,7 @@ def load_regression_data(
 
 
 def load_prediction_data(regression_data, model, update=False):
-    # import regression data
+    # import prediction data
     if update == False:
         try:
             prediction_data = pd.read_csv(PREDICTION_DATA_PATH)
@@ -185,6 +185,6 @@ def load_prediction_data(regression_data, model, update=False):
         pd.DataFrame(y_pred, columns=["future_return", "future_risk"])
     )
 
-    # export regression data
+    # export prediction data
     prediction_data.to_csv(PREDICTION_DATA_PATH, index=False)
     return prediction_data
