@@ -207,3 +207,13 @@ def load_selected_data(
 
     print("Selected data file saved.")
     return selected_data
+
+
+def load_close_data(selected_data) -> pd.DataFrame:
+    """close Data"""
+    close_data = selected_data[["date", "symbol", "close"]].copy()
+    close_data = close_data.pivot(index="date", columns="symbol")
+    close_data = close_data["close"]
+    close_data.columns.name = None
+    close_data.head()
+    return close_data
