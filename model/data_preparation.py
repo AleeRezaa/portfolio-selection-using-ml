@@ -1,7 +1,7 @@
 import json
 import warnings
-from time import sleep
 
+import numpy as np
 import pandas as pd
 import requests
 from cryptocmd import CmcScraper
@@ -11,10 +11,8 @@ warnings.filterwarnings("ignore")
 BASIC_DATA_URL = "https://api.coinmarketcap.com/data-api/v3/cryptocurrency/listing?start=1&sortBy=market_cap&sortType=desc&convert=USD&cryptoType=all&tagType=all&audited=false&limit="
 BASIC_DATA_PATH = "./data/basic_data.csv"
 HISTORICAL_DATA_PATH = "./data/historical_data.csv"
-SELECTED_DATA_PATH = "./data/selected_data.csv"
 TIMEOUT = 10
 TRIES = 5
-SLEEP = 5
 
 
 def load_basic_data(
@@ -147,19 +145,10 @@ def load_historical_data(symbols_list, update=False) -> pd.DataFrame:
     return historical_data
 
 
-def load_selected_data(
-    historical_data, selected_days=1460, end_date=None, update=False
+def load_filtered_data(
+    historical_data, selected_days=1460, end_date=None
 ) -> pd.DataFrame:
-    """Selected Data"""
-
-    # import selected data
-    if update == False:
-        try:
-            selected_data = pd.read_csv(SELECTED_DATA_PATH)
-        except FileNotFoundError:
-            print("Selected data file not found.")
-        else:
-            return selected_data
+    """Filtered Data"""
 
     if end_date is not None:
         historical_data = historical_data[historical_data["date"] <= end_date]
@@ -167,7 +156,7 @@ def load_selected_data(
     symbols_age = historical_data.groupby("symbol").count()["return"]
 
     # keep symbols which have at least n days history of return data
-    selected_data = historical_data[
+    filtered_data = historical_data[
         historical_data["symbol"].isin(dict(symbols_age[symbols_age >= selected_days]))
     ]
     print(
@@ -175,13 +164,13 @@ def load_selected_data(
     )
 
     # keep the last n days history of return data
-    selected_data = selected_data.groupby("symbol").head(selected_days)
+    filtered_data = filtered_data.groupby("symbol").head(selected_days)
 
     # keep symbols which have the last date of return data
-    symbols_last_date = selected_data.groupby("symbol").first()["date"]
+    symbols_last_date = filtered_data.groupby("symbol").first()["date"]
     last_date = symbols_last_date["BTC"]
-    selected_data = selected_data[
-        selected_data["symbol"].isin(
+    filtered_data = filtered_data[
+        filtered_data["symbol"].isin(
             dict(symbols_last_date[symbols_last_date == last_date])
         )
     ]
@@ -190,10 +179,10 @@ def load_selected_data(
     )
 
     # keep symbols which have the first date of return data
-    symbols_first_date = selected_data.groupby("symbol").last()["date"]
+    symbols_first_date = filtered_data.groupby("symbol").last()["date"]
     first_date = symbols_first_date["BTC"]
-    selected_data = selected_data[
-        selected_data["symbol"].isin(
+    filtered_data = filtered_data[
+        filtered_data["symbol"].isin(
             dict(symbols_first_date[symbols_first_date == first_date])
         )
     ]
@@ -201,17 +190,135 @@ def load_selected_data(
         f"delete symbols which do not have the first day of return data: {[x for x in dict(symbols_first_date[symbols_first_date != first_date]).keys()]}"
     )
 
-    # export selected data
-    selected_data.reset_index(drop=True, inplace=True)
-    selected_data.to_csv(SELECTED_DATA_PATH, index=False)
-
-    print("Selected data file saved.")
-    return selected_data
+    filtered_data.reset_index(drop=True, inplace=True)
+    return filtered_data
 
 
-def load_close_data(selected_data) -> pd.DataFrame:
+def load_normalized_data(filtered_data, clusters_data, future_days=30):
+    """Normalized Data"""
+
+    # add clusters
+    normalized_data = filtered_data.merge(clusters_data, on="symbol", how="inner")
+
+    # add date
+    normalized_data["date"] = pd.to_datetime(normalized_data["date"])
+    normalized_data["year"] = normalized_data["date"].dt.year
+    normalized_data["month_sin"] = np.sin(
+        2 * np.pi * normalized_data["date"].dt.month / 12
+    )
+    normalized_data["month_cos"] = np.cos(
+        2 * np.pi * normalized_data["date"].dt.month / 12
+    )
+    normalized_data["day_sin"] = np.sin(
+        2 * np.pi * normalized_data["date"].dt.month / 31
+    )
+    normalized_data["day_cos"] = np.cos(
+        2 * np.pi * normalized_data["date"].dt.month / 31
+    )
+
+    # normalize input
+    input_max_data = (
+        normalized_data[
+            [
+                "symbol",
+                "open",
+                "high",
+                "low",
+                "close",
+                "avg",
+                "return",
+                "volume",
+                "marketcap",
+                "year",
+                "month_sin",
+                "month_cos",
+                "day_sin",
+                "day_cos",
+            ]
+        ]
+        .groupby("symbol")
+        .max()
+    )
+    input_max_data = normalized_data[["symbol"]].merge(
+        input_max_data, on="symbol", how="left"
+    )
+    input_normalized_data = (
+        normalized_data[
+            [
+                "open",
+                "high",
+                "low",
+                "close",
+                "avg",
+                "return",
+                "volume",
+                "marketcap",
+                "year",
+                "month_sin",
+                "month_cos",
+                "day_sin",
+                "day_cos",
+            ]
+        ]
+        / input_max_data[
+            [
+                "open",
+                "high",
+                "low",
+                "close",
+                "avg",
+                "return",
+                "volume",
+                "marketcap",
+                "year",
+                "month_sin",
+                "month_cos",
+                "day_sin",
+                "day_cos",
+            ]
+        ]
+    )
+    input_normalized_data.columns = input_normalized_data.columns + "_n"
+    normalized_data = normalized_data.join(input_normalized_data)
+
+    # get dummies of symbols and clusters
+    normalized_data["cluster"] = normalized_data["cluster"].astype("str")
+    normalized_data = normalized_data[["symbol", "cluster"]].join(
+        pd.get_dummies(normalized_data)
+    )
+
+    # obtain future return and risk
+    normalized_data["future_return"] = (
+        (1 + normalized_data["return_n"])
+        .rolling(window=future_days)
+        .apply(np.prod, raw=True)
+        - 1
+    ).shift(1)
+    normalized_data["future_risk"] = (
+        normalized_data["return_n"].rolling(window=future_days).agg(np.var)
+    )
+    normalized_data.loc[
+        normalized_data.groupby("symbol").cumcount() < future_days,
+        ["future_return", "future_risk"],
+    ] = np.nan
+
+    normalized_data.reset_index(drop=True, inplace=True)
+    return normalized_data
+
+
+def load_return_data(filtered_data):
+    """Return Data"""
+    return_data = filtered_data[["date", "symbol", "return"]].copy()
+    return_data = return_data.pivot(index="date", columns="symbol")
+    return_data = return_data["return"]
+    return_data.index.name = None
+    return_data.columns.name = None
+    return return_data
+
+
+def load_close_data(filtered_data) -> pd.DataFrame:
     """close Data"""
-    close_data = selected_data[["date", "symbol", "close"]].copy()
+    close_data = filtered_data[["date", "symbol", "close"]].copy()
     close_data = close_data.pivot(index="date", columns="symbol")
     close_data = close_data["close"]
     close_data.columns.name = None
