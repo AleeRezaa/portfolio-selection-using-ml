@@ -1,3 +1,4 @@
+import datetime
 import json
 import warnings
 
@@ -317,10 +318,27 @@ def load_return_data(filtered_data):
 
 
 def load_close_data(filtered_data) -> pd.DataFrame:
-    """close Data"""
+    """Close Data"""
     close_data = filtered_data[["date", "symbol", "close"]].copy()
     close_data = close_data.pivot(index="date", columns="symbol")
     close_data = close_data["close"]
     close_data.columns.name = None
     close_data.head()
     return close_data
+
+
+def load_performance_data(
+    historical_data,
+    date,
+    future_days,
+) -> pd.DataFrame:
+    """Performance Data"""
+    start_date = str(pd.to_datetime(date).date() + datetime.timedelta(days=1))
+    end_date = str(
+        pd.to_datetime(date).date() + datetime.timedelta(days=future_days + 1)
+    )
+    performance_df = historical_data[
+        (historical_data["date"] >= start_date) & (historical_data["date"] <= end_date)
+    ][["symbol", "date", "close"]].copy()
+    performance_df.reset_index(drop=True, inplace=True)
+    return performance_df

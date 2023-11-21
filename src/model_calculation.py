@@ -149,3 +149,33 @@ def load_dominated_data(regression_data):
     )
     dominated_data.reset_index(drop=True, inplace=True)
     return dominated_data
+
+
+def load_ew_portfolio(df):
+    portfolio_df = df[["symbol"]].copy()
+    portfolio_df["weight"] = 1 / portfolio_df.shape[0]
+    return portfolio_df
+
+
+def get_portfolio_performance(performance_data, portfolio_data):
+    # Merge the two dataframes on the symbol column
+    merged_data = pd.merge(performance_data, portfolio_data, on="symbol")
+
+    # Calculate the daily returns for each symbol
+    daily_returns = merged_data.groupby("symbol")["close"].pct_change()
+
+    # Calculate the weighted returns for each day
+    weighted_returns = daily_returns * merged_data["weight"]
+
+    # Calculate the portfolio's daily return
+    portfolio_daily_return = weighted_returns.sum()
+
+    # Calculate the portfolio's daily standard deviation
+    portfolio_std_dev = weighted_returns.std()
+
+    # Assume the risk-free rate is 0%
+    risk_free_rate = 0
+
+    # Calculate the Sharpe Ratio
+    sharpe_ratio = (portfolio_daily_return - risk_free_rate) / portfolio_std_dev
+    return sharpe_ratio
