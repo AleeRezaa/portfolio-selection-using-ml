@@ -1,2 +1,2 @@
-model/data/
-model/__pycache__/
+data/
+src/__pycache__/
