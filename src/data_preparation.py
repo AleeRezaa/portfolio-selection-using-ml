@@ -290,13 +290,13 @@ def load_normalized_data(filtered_data, clusters_data, future_days=30):
 
     # obtain future return and risk
     normalized_data["future_return"] = (
-        (1 + normalized_data["return_n"])
+        (1 + normalized_data["return"])
         .rolling(window=future_days)
         .apply(np.prod, raw=True)
         - 1
     ).shift(1)
     normalized_data["future_risk"] = (
-        normalized_data["return_n"].rolling(window=future_days).agg(np.var)
+        normalized_data["return"].rolling(window=future_days).agg(np.var)
     )
     normalized_data.loc[
         normalized_data.groupby("symbol").cumcount() < future_days,
@@ -339,6 +339,6 @@ def load_performance_data(
     )
     performance_df = historical_data[
         (historical_data["date"] >= start_date) & (historical_data["date"] <= end_date)
-    ][["symbol", "date", "close"]].copy()
+    ][["symbol", "date", "close", "return"]].copy()
     performance_df.reset_index(drop=True, inplace=True)
     return performance_df

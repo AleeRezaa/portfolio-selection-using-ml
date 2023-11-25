@@ -157,25 +157,26 @@ def load_ew_portfolio(df):
     return portfolio_df
 
 
-def get_portfolio_performance(performance_data, portfolio_data):
-    # Merge the two dataframes on the symbol column
-    merged_data = pd.merge(performance_data, portfolio_data, on="symbol")
+def get_portfolio_performance(portfolio_data, performance_data):
+    # # Merge the two dataframes on the symbol column
+    # merged_data = pd.merge(performance_data, portfolio_data, on="symbol")
 
-    # Calculate the daily returns for each symbol
-    daily_returns = merged_data.groupby("symbol")["close"].pct_change()
+    # # Calculate the daily returns for each symbol
+    # daily_returns = merged_data.groupby("symbol")["close"].pct_change(periods=-1)
 
-    # Calculate the weighted returns for each day
-    weighted_returns = daily_returns * merged_data["weight"]
+    # # Calculate the weighted returns for each day
+    # weighted_returns = daily_returns * merged_data["weight"]
 
-    # Calculate the portfolio's daily return
-    portfolio_daily_return = weighted_returns.sum()
+    # # Calculate the portfolio's daily return
+    # portfolio_daily_return = weighted_returns.sum()
 
-    # Calculate the portfolio's daily standard deviation
-    portfolio_std_dev = weighted_returns.std()
+    # # Calculate the portfolio's daily standard deviation
+    # portfolio_std_dev = weighted_returns.std()
 
-    # Assume the risk-free rate is 0%
-    risk_free_rate = 0
+    # # Assume the risk-free rate is 0%
+    # risk_free_rate = 0
 
-    # Calculate the Sharpe Ratio
-    sharpe_ratio = (portfolio_daily_return - risk_free_rate) / portfolio_std_dev
-    return sharpe_ratio
+    # # Calculate the Sharpe Ratio
+    # sharpe_ratio = (portfolio_daily_return - risk_free_rate) / portfolio_std_dev
+    # return sharpe_ratio
+    pass
