@@ -10,6 +10,13 @@ from sklearn import linear_model
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
+from pypfopt.expected_returns import mean_historical_return
+from pypfopt.risk_models import CovarianceShrinkage, sample_cov
+from pypfopt.efficient_frontier import EfficientFrontier
+from pypfopt import HRPOpt
+from pypfopt.efficient_frontier import EfficientCVaR
+
+import src.data_preparation as dp
 
 warnings.filterwarnings("ignore")
 
@@ -155,6 +162,34 @@ def load_ew_portfolio(df):
     portfolio_df = df[["symbol"]].copy()
     portfolio_df["weight"] = 1 / portfolio_df.shape[0]
     return portfolio_df
+
+
+def load_portfolio_with(model, close_data):
+    match model:
+        case "mv":
+            m = mean_historical_return(close_data)
+            s = sample_cov(
+                close_data
+            )  # s = CovarianceShrinkage(close_df).ledoit_wolf()
+            md = EfficientFrontier(m, s)
+            weights = md.max_sharpe()
+        case "hrp":
+            returns = close_data.pct_change().dropna()
+            md = HRPOpt(returns)
+            weights = md.optimize()
+        case "mcvar":
+            m = mean_historical_return(close_data)
+            s = close_data.cov()
+            md = EfficientCVaR(m, s)
+            weights = md.min_cvar()
+
+        case _:
+            raise ValueError("Wrong model entered.")
+
+    cleaned_weights = dict(md.clean_weights())
+    md.portfolio_performance(verbose=True)
+    portfolio_data = dp.get_portfolio_from_dict(dict(cleaned_weights))
+    return portfolio_data
 
 
 def get_portfolio_performance(portfolio_data, performance_data):
