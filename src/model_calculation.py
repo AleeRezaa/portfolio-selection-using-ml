@@ -158,25 +158,30 @@ def load_ew_portfolio(df):
 
 
 def get_portfolio_performance(portfolio_data, performance_data):
-    # # Merge the two dataframes on the symbol column
-    # merged_data = pd.merge(performance_data, portfolio_data, on="symbol")
+    performance_data = performance_data.sort_values("date")
+    performance_data = performance_data[
+        performance_data["symbol"].isin(portfolio_data["symbol"].unique())
+    ]
 
-    # # Calculate the daily returns for each symbol
-    # daily_returns = merged_data.groupby("symbol")["close"].pct_change(periods=-1)
+    # Calculate the daily returns of each symbol
+    returns_df = performance_data.pivot(
+        index="date", columns="symbol", values="close"
+    ).pct_change()
 
-    # # Calculate the weighted returns for each day
-    # weighted_returns = daily_returns * merged_data["weight"]
+    # Calculate the weighted average daily return of the portfolio
+    weights = portfolio_data.set_index("symbol")["weight"]
+    portfolio_returns = (returns_df * weights).sum(axis=1)
 
-    # # Calculate the portfolio's daily return
-    # portfolio_daily_return = weighted_returns.sum()
+    # Calculate the daily excess return of the portfolio
+    risk_free_rate = 0.01 / 252  # 3-month Treasury bill rate
+    excess_returns = portfolio_returns - risk_free_rate
 
-    # # Calculate the portfolio's daily standard deviation
-    # portfolio_std_dev = weighted_returns.std()
+    # Calculate the covariance matrix of the daily returns of the symbols in the portfolio
+    covariance_matrix = returns_df.cov()
 
-    # # Assume the risk-free rate is 0%
-    # risk_free_rate = 0
+    # Calculate the standard deviation of the daily excess returns of the portfolio using the covariance matrix
+    excess_returns_std = np.sqrt(np.dot(weights.T, np.dot(covariance_matrix, weights)))
 
-    # # Calculate the Sharpe Ratio
-    # sharpe_ratio = (portfolio_daily_return - risk_free_rate) / portfolio_std_dev
-    # return sharpe_ratio
-    pass
+    # Calculate the Sharpe ratio of the portfolio
+    sharpe_ratio = excess_returns.mean() / excess_returns_std
+    return sharpe_ratio

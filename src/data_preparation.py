@@ -342,3 +342,12 @@ def load_performance_data(
     ][["symbol", "date", "close", "return"]].copy()
     performance_df.reset_index(drop=True, inplace=True)
     return performance_df
+
+
+def get_portfolio_from_dict(weights_dict):
+    portfolio_df = pd.DataFrame.from_dict(
+        weights_dict, orient="index", columns=["weight"]
+    )
+    portfolio_df.index.name = "symbol"
+    portfolio_df.reset_index(inplace=True)
+    return portfolio_df
