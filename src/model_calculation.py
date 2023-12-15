@@ -208,7 +208,7 @@ def get_portfolio_performance(portfolio_data, performance_data):
     portfolio_returns = (returns_df * weights).sum(axis=1)
 
     # Calculate the daily excess return of the portfolio
-    risk_free_rate = 0.01 / 252  # 3-month Treasury bill rate
+    risk_free_rate = 0
     excess_returns = portfolio_returns - risk_free_rate
 
     # Calculate the covariance matrix of the daily returns of the symbols in the portfolio
