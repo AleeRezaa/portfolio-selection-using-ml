@@ -26,7 +26,9 @@ REGRESSION_DATA_PATH = "./data/regression_data.csv"
 
 # https://www.relataly.com/crypto-market-cluster-analysis-using-affinity-propagation-python/8114/
 # Affinity Propagation انتشار وابستگی
-def load_clusters_data(return_data, update=False):
+def load_clusters_data(
+    return_data: pd.DataFrame, model: str, update: bool = False
+) -> pd.DataFrame:
     """Clusters Data"""
 
     # import clusters data
@@ -72,7 +74,9 @@ def load_clusters_data(return_data, update=False):
     return clusters_data
 
 
-def load_regression_data(normalized_data, model, update=False):
+def load_regression_data(
+    normalized_data: pd.DataFrame, model: str, update: bool = False
+) -> pd.DataFrame:
     # import regression data
     if update == False:
         try:
@@ -120,7 +124,7 @@ def load_regression_data(normalized_data, model, update=False):
     return regression_data
 
 
-def load_dominated_data(regression_data):
+def load_dominated_data(regression_data: pd.DataFrame) -> pd.DataFrame:
     """Dominated Data"""
 
     dominated_data = regression_data[
@@ -158,13 +162,13 @@ def load_dominated_data(regression_data):
     return dominated_data
 
 
-def load_ew_portfolio(df):
+def load_ew_portfolio(df: pd.DataFrame) -> pd.DataFrame:
     portfolio_df = df[["symbol"]].copy()
     portfolio_df["weight"] = 1 / portfolio_df.shape[0]
     return portfolio_df
 
 
-def load_portfolio_with(model, close_data):
+def load_portfolio(close_data: pd.DataFrame, model: str) -> pd.DataFrame:
     match model:
         case "mv":
             m = mean_historical_return(close_data)
@@ -192,7 +196,9 @@ def load_portfolio_with(model, close_data):
     return portfolio_data
 
 
-def get_portfolio_performance(portfolio_data, performance_data):
+def get_portfolio_performance(
+    portfolio_data: pd.DataFrame, performance_data: pd.DataFrame
+) -> float:
     performance_data = performance_data.sort_values("date")
     performance_data = performance_data[
         performance_data["symbol"].isin(portfolio_data["symbol"].unique())

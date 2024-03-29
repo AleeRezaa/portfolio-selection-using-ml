@@ -40,7 +40,7 @@ def main() -> None:
     clusters_df = mc.load_clusters_data(return_df, update=True)
     clusters_number = clusters_df["cluster"].unique().shape[0]
 
-    # Regression Model
+    # Regression Model ###############################################################
 
     # TODO: Test should be in a range of time?
     # TODO: Use ANN models
@@ -48,15 +48,17 @@ def main() -> None:
     # TODO: Add more regression models (LogisticRegression(), SVC(kernel='poly', probability=True), XGBClassifier(), etc)
     # TODO: Grid search over parameters
 
-    normalized_df = dp.load_normalized_data(
-        filtered_df, clusters_df, future_days=FUTURE_DAYS
-    )
+    # normalized_df = dp.load_normalized_data(
+    #     filtered_df, clusters_df, future_days=FUTURE_DAYS
+    # )
 
-    # normalized_df.plot.scatter(x='close', y='future_return')
+    # # normalized_df.plot.scatter(x='close', y='future_return')
 
-    regression_df = mc.load_regression_data(
-        normalized_df, model="random_forest_regressor", update=True
-    )
+    # regression_df = mc.load_regression_data(
+    #     normalized_df, model="random_forest_regressor", update=True
+    # )
+
+    ##################################################################################
 
     # Portfolio Selection
 
@@ -84,17 +86,17 @@ def main() -> None:
     )
 
     # Mean Variance Max Sharpe
-    portfolio_df = mc.load_portfolio_with("mv", close_df)
+    portfolio_df = mc.load_portfolio(close_df, "mv")
     sharpe_ratio = mc.get_portfolio_performance(portfolio_df, performance_df)
     print(f"The Sharpe Ratio for your portfolio is {sharpe_ratio:.2f}.")
 
     # Hierarchical Risk Parity
-    portfolio_df = mc.load_portfolio_with("hrp", close_df)
+    portfolio_df = mc.load_portfolio(close_df, "hrp")
     sharpe_ratio = mc.get_portfolio_performance(portfolio_df, performance_df)
     print(f"The Sharpe Ratio for your portfolio is {sharpe_ratio:.2f}.")
 
     # mCVAR
-    portfolio_df = mc.load_portfolio_with("mcvar", close_df)
+    portfolio_df = mc.load_portfolio(close_df, "mcvar")
     sharpe_ratio = mc.get_portfolio_performance(portfolio_df, performance_df)
     print(f"The Sharpe Ratio for your portfolio is {sharpe_ratio:.2f}.")
 
