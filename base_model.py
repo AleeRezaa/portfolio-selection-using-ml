@@ -7,9 +7,10 @@ from src import model_calculation as mc
 
 
 def main() -> None:
-    DATE = "2023-10-01"
+    END_DATE = "2024-03-01"
     FUTURE_DAYS = 60
     SYMBOLS = 20
+    RF = 0
 
     # Data Load
 
@@ -27,38 +28,20 @@ def main() -> None:
     symbols_list = basic_df["symbol"].to_list()
     historical_df = dp.load_historical_data(symbols_list, update=False)
 
-    filtered_df = dp.load_filtered_data(
-        historical_df, selected_days=1460, end_date=DATE
+    historical_df, future_df = dp.filter_historical_data(
+        historical_df, selected_days=1460, future_days=FUTURE_DAYS, end_date=END_DATE
     )
 
     # Clustering Model
 
-    return_df = dp.load_return_data(filtered_df)
+    return_df = dp.load_return_data(historical_df)
 
     # TODO: Add a KPI to measure how much the model worked
 
-    clusters_df = mc.load_clusters_data(return_df, update=True)
+    clusters_df = mc.load_clusters_data(return_df, model="affinity_propagation")
     clusters_number = clusters_df["cluster"].unique().shape[0]
 
-    # Regression Model ###############################################################
-
-    # TODO: Test should be in a range of time?
-    # TODO: Use ANN models
-    # TODO: Add financial indexes to regression model
-    # TODO: Add more regression models (LogisticRegression(), SVC(kernel='poly', probability=True), XGBClassifier(), etc)
-    # TODO: Grid search over parameters
-
-    # normalized_df = dp.load_normalized_data(
-    #     filtered_df, clusters_df, future_days=FUTURE_DAYS
-    # )
-
-    # # normalized_df.plot.scatter(x='close', y='future_return')
-
-    # regression_df = mc.load_regression_data(
-    #     normalized_df, model="random_forest_regressor", update=True
-    # )
-
-    ##################################################################################
+    processed_df = historical_df.merge(clusters_df, on="symbol")
 
     # Portfolio Selection
 
@@ -68,36 +51,33 @@ def main() -> None:
     # TODO: long and short? weight_bounds=(-1, 1)
     # TODO: non-covariance models: sparse portfolio, minimum variance portfolio, etc
 
-    performance_df = dp.load_performance_data(
-        historical_df,
-        DATE,
-        FUTURE_DAYS,
-    )
+    risk_return_df = mc.calculate_risk_return(processed_df, rf=RF)
+    symbols_df = clusters_df.merge(risk_return_df, on="symbol")
 
-    dominated_df = mc.load_dominated_data(regression_df)
-
+    dominated_df = mc.load_dominated_data(symbols_df)
     portfolio_df = mc.load_ew_portfolio(dominated_df)
 
-    sharpe_ratio = mc.get_portfolio_performance(portfolio_df, performance_df)
+    performance_df = future_df[["symbol", "date", "close", "return"]]
+    sharpe_ratio = mc.get_portfolio_performance(portfolio_df, performance_df, rf=RF)
     print(f"The Sharpe Ratio for your portfolio is {sharpe_ratio:.2f}.")
 
     close_df = dp.load_close_data(
-        filtered_df,
+        historical_df,
     )
 
     # Mean Variance Max Sharpe
     portfolio_df = mc.load_portfolio(close_df, "mv")
-    sharpe_ratio = mc.get_portfolio_performance(portfolio_df, performance_df)
+    sharpe_ratio = mc.get_portfolio_performance(portfolio_df, performance_df, rf=RF)
     print(f"The Sharpe Ratio for your portfolio is {sharpe_ratio:.2f}.")
 
     # Hierarchical Risk Parity
     portfolio_df = mc.load_portfolio(close_df, "hrp")
-    sharpe_ratio = mc.get_portfolio_performance(portfolio_df, performance_df)
+    sharpe_ratio = mc.get_portfolio_performance(portfolio_df, performance_df, rf=RF)
     print(f"The Sharpe Ratio for your portfolio is {sharpe_ratio:.2f}.")
 
     # mCVAR
     portfolio_df = mc.load_portfolio(close_df, "mcvar")
-    sharpe_ratio = mc.get_portfolio_performance(portfolio_df, performance_df)
+    sharpe_ratio = mc.get_portfolio_performance(portfolio_df, performance_df, rf=RF)
     print(f"The Sharpe Ratio for your portfolio is {sharpe_ratio:.2f}.")
 
     # sparse portfolio
@@ -186,7 +166,7 @@ def main() -> None:
     )
 
     portfolio_df = dp.get_portfolio_from_dict(dict(cleaned_weights))
-    sharpe_ratio = mc.get_portfolio_performance(portfolio_df, performance_df)
+    sharpe_ratio = mc.get_portfolio_performance(portfolio_df, performance_df, rf=RF)
     print(f"The Sharpe Ratio for your portfolio is {sharpe_ratio:.2f}.")
 
 

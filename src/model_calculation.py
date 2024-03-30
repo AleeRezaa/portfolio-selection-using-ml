@@ -1,20 +1,16 @@
 import warnings
+from itertools import combinations
 
 import numpy as np
 import pandas as pd
-from sklearn import cluster, covariance
-from itertools import combinations
-import warnings
-
-from sklearn import linear_model
+from pypfopt import HRPOpt
+from pypfopt.efficient_frontier import EfficientCVaR, EfficientFrontier
+from pypfopt.expected_returns import mean_historical_return
+from pypfopt.risk_models import CovarianceShrinkage, sample_cov
+from sklearn import cluster, covariance, linear_model
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
-from pypfopt.expected_returns import mean_historical_return
-from pypfopt.risk_models import CovarianceShrinkage, sample_cov
-from pypfopt.efficient_frontier import EfficientFrontier
-from pypfopt import HRPOpt
-from pypfopt.efficient_frontier import EfficientCVaR
 
 import src.data_preparation as dp
 
@@ -24,21 +20,11 @@ CLUSTERS_DATA_PATH = "./data/clusters_data.csv"
 REGRESSION_DATA_PATH = "./data/regression_data.csv"
 
 
-# https://www.relataly.com/crypto-market-cluster-analysis-using-affinity-propagation-python/8114/
-# Affinity Propagation انتشار وابستگی
-def load_clusters_data(
-    return_data: pd.DataFrame, model: str, update: bool = False
-) -> pd.DataFrame:
-    """Clusters Data"""
-
-    # import clusters data
-    if update == False:
-        try:
-            clusters_data = pd.read_csv(CLUSTERS_DATA_PATH)
-        except FileNotFoundError:
-            print("Clusters data file not found.")
-        else:
-            return clusters_data
+def affinity_propagation_model(return_data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Affinity Propagation انتشار وابستگی
+    https://www.relataly.com/crypto-market-cluster-analysis-using-affinity-propagation-python/8114/
+    """
 
     # create clustering data
     symbols = return_data.columns
@@ -67,10 +53,18 @@ def load_clusters_data(
                 str(c).zfill(len(str(n - 1))),
             ]
 
-    # export clusters data
-    clusters_data.to_csv(CLUSTERS_DATA_PATH, index=False)
+    return clusters_data
 
-    print("Clusters data file saved.")
+
+def load_clusters_data(return_data: pd.DataFrame, model: str) -> pd.DataFrame:
+    """Clusters Data"""
+
+    match model:
+        case "affinity_propagation":
+            clusters_data = affinity_propagation_model(return_data)
+        case _:
+            raise ValueError("Wrong model entered.")
+
     return clusters_data
 
 
@@ -124,31 +118,36 @@ def load_regression_data(
     return regression_data
 
 
-def load_dominated_data(regression_data: pd.DataFrame) -> pd.DataFrame:
+def calculate_risk_return(processed_data: pd.DataFrame, rf: float = 0) -> pd.DataFrame:
+    risk_return_data = processed_data.groupby(by="symbol", as_index=False).apply(
+        lambda x: pd.Series(
+            {"return": (1 + x["return"]).prod() - 1, "risk": x["return"].var()}
+        )
+    )
+    risk_return_data["sharpe_ratio"] = (risk_return_data["return"] - rf) / (
+        risk_return_data["return"] ** 0.5
+    )
+    return risk_return_data
+
+
+def load_dominated_data(symbols_data: pd.DataFrame) -> pd.DataFrame:
     """Dominated Data"""
 
-    dominated_data = regression_data[
-        ["symbol", "cluster", "future_return", "future_risk"]
-    ].copy()
+    dominated_data = symbols_data.copy()
     dominated_symbols = list(dominated_data["symbol"])
 
     for cluster, cluster_data in dominated_data.groupby("cluster"):
         cluster_combinations = combinations(cluster_data["symbol"], 2)
         for comb in list(cluster_combinations):
-            symbol1 = comb[0]
-            symbol2 = comb[1]
+            symbol1, symbol2 = comb[0], comb[1]
             return1 = cluster_data.loc[
-                cluster_data["symbol"] == symbol1, "future_return"
+                cluster_data["symbol"] == symbol1, "return"
             ].iloc[0]
             return2 = cluster_data.loc[
-                cluster_data["symbol"] == symbol2, "future_return"
+                cluster_data["symbol"] == symbol2, "return"
             ].iloc[0]
-            risk1 = cluster_data.loc[
-                cluster_data["symbol"] == symbol1, "future_risk"
-            ].iloc[0]
-            risk2 = cluster_data.loc[
-                cluster_data["symbol"] == symbol2, "future_risk"
-            ].iloc[0]
+            risk1 = cluster_data.loc[cluster_data["symbol"] == symbol1, "risk"].iloc[0]
+            risk2 = cluster_data.loc[cluster_data["symbol"] == symbol2, "risk"].iloc[0]
             if return1 < return2 and risk1 > risk2 and symbol1 in dominated_symbols:
                 dominated_symbols.remove(symbol1)
             elif return1 > return2 and risk1 < risk2 and symbol2 in dominated_symbols:
@@ -156,7 +155,7 @@ def load_dominated_data(regression_data: pd.DataFrame) -> pd.DataFrame:
 
     dominated_data = dominated_data[dominated_data["symbol"].isin(dominated_symbols)]
     dominated_data.sort_values(
-        by=["cluster", "future_return"], ascending=[True, False], inplace=True
+        by=["cluster", "return"], ascending=[True, False], inplace=True
     )
     dominated_data.reset_index(drop=True, inplace=True)
     return dominated_data
@@ -197,7 +196,7 @@ def load_portfolio(close_data: pd.DataFrame, model: str) -> pd.DataFrame:
 
 
 def get_portfolio_performance(
-    portfolio_data: pd.DataFrame, performance_data: pd.DataFrame
+    portfolio_data: pd.DataFrame, performance_data: pd.DataFrame, rf: float = 0
 ) -> float:
     performance_data = performance_data.sort_values("date")
     performance_data = performance_data[
@@ -214,8 +213,7 @@ def get_portfolio_performance(
     portfolio_returns = (returns_df * weights).sum(axis=1)
 
     # Calculate the daily excess return of the portfolio
-    risk_free_rate = 0
-    excess_returns = portfolio_returns - risk_free_rate
+    excess_returns = portfolio_returns - rf
 
     # Calculate the covariance matrix of the daily returns of the symbols in the portfolio
     covariance_matrix = returns_df.cov()

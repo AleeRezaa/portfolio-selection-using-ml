@@ -61,7 +61,7 @@ def load_basic_data(
     return basic_data
 
 
-def load_historical_data(symbols_list, update=False) -> pd.DataFrame:
+def load_historical_data(symbols_list: list, update: bool = False) -> pd.DataFrame:
     """Historical Data"""
 
     # import historical data
@@ -146,18 +146,23 @@ def load_historical_data(symbols_list, update=False) -> pd.DataFrame:
     return historical_data
 
 
-def load_filtered_data(
-    historical_data, selected_days=1460, end_date=None
+def filter_historical_data(
+    historical_data: pd.DataFrame, selected_days=1460, future_days=30, end_date=None
 ) -> pd.DataFrame:
     """Filtered Data"""
 
-    if end_date is not None:
-        historical_data = historical_data[historical_data["date"] <= end_date]
+    if end_date is None:
+        end_date = str(
+            pd.to_datetime(historical_data["date"].max()).date()
+            + datetime.timedelta(days=1)
+        )
+
+    historical_data = historical_data[historical_data["date"] <= end_date]
 
     symbols_age = historical_data.groupby("symbol").count()["return"]
 
     # keep symbols which have at least n days history of return data
-    filtered_data = historical_data[
+    historical_data = historical_data[
         historical_data["symbol"].isin(dict(symbols_age[symbols_age >= selected_days]))
     ]
     print(
@@ -165,13 +170,13 @@ def load_filtered_data(
     )
 
     # keep the last n days history of return data
-    filtered_data = filtered_data.groupby("symbol").head(selected_days)
+    historical_data = historical_data.groupby("symbol").head(selected_days)
 
     # keep symbols which have the last date of return data
-    symbols_last_date = filtered_data.groupby("symbol").first()["date"]
+    symbols_last_date = historical_data.groupby("symbol").first()["date"]
     last_date = symbols_last_date["BTC"]
-    filtered_data = filtered_data[
-        filtered_data["symbol"].isin(
+    historical_data = historical_data[
+        historical_data["symbol"].isin(
             dict(symbols_last_date[symbols_last_date == last_date])
         )
     ]
@@ -180,10 +185,10 @@ def load_filtered_data(
     )
 
     # keep symbols which have the first date of return data
-    symbols_first_date = filtered_data.groupby("symbol").last()["date"]
+    symbols_first_date = historical_data.groupby("symbol").last()["date"]
     first_date = symbols_first_date["BTC"]
-    filtered_data = filtered_data[
-        filtered_data["symbol"].isin(
+    historical_data = historical_data[
+        historical_data["symbol"].isin(
             dict(symbols_first_date[symbols_first_date == first_date])
         )
     ]
@@ -191,15 +196,27 @@ def load_filtered_data(
         f"delete symbols which do not have the first day of return data: {[x for x in dict(symbols_first_date[symbols_first_date != first_date]).keys()]}"
     )
 
-    filtered_data.reset_index(drop=True, inplace=True)
-    return filtered_data
+    future_start_day = str(
+        pd.to_datetime(end_date).date() - datetime.timedelta(days=future_days)
+    )
+    future_data = historical_data[historical_data["date"] > future_start_day].copy()
+    future_data.reset_index(drop=True, inplace=True)
+
+    historical_data = historical_data[
+        historical_data["date"] <= future_start_day
+    ].copy()
+    historical_data.reset_index(drop=True, inplace=True)
+
+    return historical_data, future_data
 
 
-def load_normalized_data(filtered_data, clusters_data, future_days=30):
+def load_normalized_data(
+    historical_data: pd.DataFrame, clusters_data: pd.DataFrame, future_days=30
+) -> pd.DataFrame:
     """Normalized Data"""
 
     # add clusters
-    normalized_data = filtered_data.merge(clusters_data, on="symbol", how="inner")
+    normalized_data = historical_data.merge(clusters_data, on="symbol", how="inner")
 
     # add date
     normalized_data["date"] = pd.to_datetime(normalized_data["date"])
@@ -307,9 +324,9 @@ def load_normalized_data(filtered_data, clusters_data, future_days=30):
     return normalized_data
 
 
-def load_return_data(filtered_data):
+def load_return_data(historical_data: pd.DataFrame) -> pd.DataFrame:
     """Return Data"""
-    return_data = filtered_data[["date", "symbol", "return"]].copy()
+    return_data = historical_data[["date", "symbol", "return"]].copy()
     return_data = return_data.pivot(index="date", columns="symbol")
     return_data = return_data["return"]
     return_data.index.name = None
@@ -317,9 +334,9 @@ def load_return_data(filtered_data):
     return return_data
 
 
-def load_close_data(filtered_data) -> pd.DataFrame:
+def load_close_data(historical_data: pd.DataFrame) -> pd.DataFrame:
     """Close Data"""
-    close_data = filtered_data[["date", "symbol", "close"]].copy()
+    close_data = historical_data[["date", "symbol", "close"]].copy()
     close_data = close_data.pivot(index="date", columns="symbol")
     close_data = close_data["close"]
     close_data.columns.name = None
@@ -328,7 +345,7 @@ def load_close_data(filtered_data) -> pd.DataFrame:
 
 
 def load_performance_data(
-    historical_data,
+    historical_data: pd.DataFrame,
     date,
     future_days,
 ) -> pd.DataFrame:
