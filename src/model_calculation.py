@@ -155,12 +155,34 @@ def select_symbols(df: pd.DataFrame, model: str, dominate: bool = True) -> list:
                     return1 > return2 and risk1 < risk2 and symbol2 in selected_symbols
                 ):
                     selected_symbols.remove(symbol2)
+    df = df[df["symbol"].isin(selected_symbols)]
 
     match model:
         case "keep_all":
-            pass
+            return selected_symbols
         case "max_return":
-            pass
+            df = df.groupby(["cluster"]).apply(
+                lambda group: group[group["return"] == group["return"].max()]
+            )
+        case "min_risk":
+            df = df.groupby(["cluster"]).apply(
+                lambda group: group[group["risk"] == group["risk"].min()]
+            )
+        case "max_sharpe":
+            df = df.groupby(["cluster"]).apply(
+                lambda group: group[
+                    group["sharpe_ratio"] == group["sharpe_ratio"].max()
+                ]
+            )
+        case _:
+            raise ValueError("Wrong model entered.")
+
+    selected_symbols = df["symbol"].unique()
+
+    # TODO: fix issue if more symbols than clusters because of equal values
+    if len(selected_symbols) != len(df["cluster"].unique()):
+        raise ValueError("More symbols than clusters.")
+
     return selected_symbols
 
 

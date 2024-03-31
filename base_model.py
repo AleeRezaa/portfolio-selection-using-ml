@@ -1,7 +1,5 @@
 from os import mkdir, path
 
-import numpy as np
-
 from src import data_preparation as dp
 from src import model_calculation as mc
 
@@ -14,7 +12,7 @@ def main() -> None:
 
     CLUSTERING_METHODS = ["affinity_propagation"]
     USE_DOMINATION = [True, False]
-    SYMBOL_SELECTION_METHODS = ["keep_all"]
+    SYMBOL_SELECTION_METHODS = ["keep_all", "max_return", "min_risk", "max_sharpe"]
     PORTFOLIO_SELECTION_METHODS = ["ew", "mv", "hrp", "mcvar"]
 
     # Load Data
