@@ -61,9 +61,6 @@ def main() -> None:
         # TODO: long and short? weight_bounds=(-1, 1)
         # TODO: non-covariance models: sparse portfolio, minimum variance portfolio, etc
 
-        close_df = dp.load_close_data(
-            historical_df,
-        )
         performance_df = future_df[["symbol", "date", "close", "return"]]
 
         risk_return_df = mc.calculate_risk_return(processed_df, rf=RF)
@@ -72,19 +69,21 @@ def main() -> None:
         for use_domination in USE_DOMINATION:
             print(f"use_domination: {use_domination}")
             if use_domination:
-                dominated_symbols = mc.get_dominated_symbols(aggregated_df)
-                processed_df = processed_df[
-                    processed_df["symbol"].isin(dominated_symbols)
-                ]
-                aggregated_df = aggregated_df[
-                    aggregated_df["symbol"].isin(dominated_symbols)
-                ]
+                selected_symbols = mc.get_dominated_symbols(aggregated_df)
+            else:
+                selected_symbols = aggregated_df["symbol"].unique()
+            dom_processed_df = processed_df[
+                processed_df["symbol"].isin(selected_symbols)
+            ].copy()
 
             for symbol_selection_method in SYMBOL_SELECTION_METHODS:
                 print(f"symbol_selection_method: {symbol_selection_method}")
 
                 for portfolio_selection_method in PORTFOLIO_SELECTION_METHODS:
                     print(f"portfolio_selection_method: {portfolio_selection_method}")
+                    close_df = dp.load_close_data(
+                        dom_processed_df,
+                    )
                     portfolio_df = mc.calculate_portfolio(
                         close_df, portfolio_selection_method
                     )
