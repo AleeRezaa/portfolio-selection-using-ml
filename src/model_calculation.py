@@ -130,45 +130,38 @@ def calculate_risk_return(processed_data: pd.DataFrame, rf: float = 0) -> pd.Dat
     return risk_return_data
 
 
-def get_dominated_symbols(symbols_data: pd.DataFrame) -> list:
-    """Dominated Symbols"""
+def select_symbols(df: pd.DataFrame, model: str, dominate: bool = True) -> list:
+    selected_symbols = list(df["symbol"])
+    if dominate:
+        for cluster, cluster_data in df.groupby("cluster"):
+            cluster_combinations = combinations(cluster_data["symbol"], 2)
+            for comb in list(cluster_combinations):
+                symbol1, symbol2 = comb[0], comb[1]
+                return1 = cluster_data.loc[
+                    cluster_data["symbol"] == symbol1, "return"
+                ].iloc[0]
+                return2 = cluster_data.loc[
+                    cluster_data["symbol"] == symbol2, "return"
+                ].iloc[0]
+                risk1 = cluster_data.loc[
+                    cluster_data["symbol"] == symbol1, "risk"
+                ].iloc[0]
+                risk2 = cluster_data.loc[
+                    cluster_data["symbol"] == symbol2, "risk"
+                ].iloc[0]
+                if return1 < return2 and risk1 > risk2 and symbol1 in selected_symbols:
+                    selected_symbols.remove(symbol1)
+                elif (
+                    return1 > return2 and risk1 < risk2 and symbol2 in selected_symbols
+                ):
+                    selected_symbols.remove(symbol2)
 
-    dominated_data = symbols_data.copy()
-    dominated_symbols = list(dominated_data["symbol"])
-
-    for cluster, cluster_data in dominated_data.groupby("cluster"):
-        cluster_combinations = combinations(cluster_data["symbol"], 2)
-        for comb in list(cluster_combinations):
-            symbol1, symbol2 = comb[0], comb[1]
-            return1 = cluster_data.loc[
-                cluster_data["symbol"] == symbol1, "return"
-            ].iloc[0]
-            return2 = cluster_data.loc[
-                cluster_data["symbol"] == symbol2, "return"
-            ].iloc[0]
-            risk1 = cluster_data.loc[cluster_data["symbol"] == symbol1, "risk"].iloc[0]
-            risk2 = cluster_data.loc[cluster_data["symbol"] == symbol2, "risk"].iloc[0]
-            if return1 < return2 and risk1 > risk2 and symbol1 in dominated_symbols:
-                dominated_symbols.remove(symbol1)
-            elif return1 > return2 and risk1 < risk2 and symbol2 in dominated_symbols:
-                dominated_symbols.remove(symbol2)
-
-    # dominated_data = dominated_data[dominated_data["symbol"].isin(dominated_symbols)]
-    # dominated_data.sort_values(
-    #     by=["cluster", "return"], ascending=[True, False], inplace=True
-    # )
-    # dominated_data.reset_index(drop=True, inplace=True)
-    return dominated_symbols
-
-
-def select_symbols(df: pd.DataFrame, model: str) -> pd.DataFrame:
     match model:
         case "keep_all":
-            portfolio_df = df[["symbol"]].copy()
-            portfolio_df["weight"] = 1 / portfolio_df.shape[0]
+            pass
         case "max_return":
             pass
-    return portfolio_df
+    return selected_symbols
 
 
 def calculate_portfolio(df: pd.DataFrame, model: str) -> pd.DataFrame:

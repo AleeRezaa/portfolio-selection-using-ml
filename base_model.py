@@ -58,16 +58,17 @@ def main() -> None:
 
         for use_domination in USE_DOMINATION:
             print(f"use_domination: {use_domination}")
-            if use_domination:
-                selected_symbols = mc.get_dominated_symbols(aggregated_df)
-            else:
-                selected_symbols = aggregated_df["symbol"].unique()
-            dom_processed_df = processed_df[
-                processed_df["symbol"].isin(selected_symbols)
-            ].copy()
 
             for symbol_selection_method in SYMBOL_SELECTION_METHODS:
                 print(f"symbol_selection_method: {symbol_selection_method}")
+                selected_symbols = mc.select_symbols(
+                    aggregated_df,
+                    model=symbol_selection_method,
+                    dominate=use_domination,
+                )
+                selected_processed_df = processed_df[
+                    processed_df["symbol"].isin(selected_symbols)
+                ].copy()
 
                 # Portfolio Selection
                 # TODO: Use clustering models like HRP
@@ -79,7 +80,7 @@ def main() -> None:
                     print(f"portfolio_selection_method: {portfolio_selection_method}")
 
                     portfolio_df = mc.calculate_portfolio(
-                        dom_processed_df, portfolio_selection_method
+                        selected_processed_df, portfolio_selection_method
                     )
                     sharpe_ratio = mc.get_portfolio_performance(
                         portfolio_df, performance_df, rf=RF
