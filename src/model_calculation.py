@@ -163,7 +163,7 @@ def get_dominated_symbols(symbols_data: pd.DataFrame) -> list:
 
 def select_symbols(df: pd.DataFrame, model: str) -> pd.DataFrame:
     match model:
-        case "ew":
+        case "keep_all":
             portfolio_df = df[["symbol"]].copy()
             portfolio_df["weight"] = 1 / portfolio_df.shape[0]
         case "max_return":
@@ -171,11 +171,15 @@ def select_symbols(df: pd.DataFrame, model: str) -> pd.DataFrame:
     return portfolio_df
 
 
-def calculate_portfolio(close_data: pd.DataFrame, model: str) -> pd.DataFrame:
+def calculate_portfolio(df: pd.DataFrame, model: str) -> pd.DataFrame:
+    close_data = dp.load_close_data(df)
+
     match model:
         # Equal Weighted
-        # case "ew":
-        #     cleaned_weights =
+        case "ew":
+            cleaned_weights = {
+                symbol: 1 / len(close_data.columns) for symbol in close_data.columns
+            }
         # Mean Variance Max Sharpe
         case "mv":
             m = mean_historical_return(close_data)
