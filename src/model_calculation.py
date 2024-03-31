@@ -130,8 +130,8 @@ def calculate_risk_return(processed_data: pd.DataFrame, rf: float = 0) -> pd.Dat
     return risk_return_data
 
 
-def load_dominated_data(symbols_data: pd.DataFrame) -> pd.DataFrame:
-    """Dominated Data"""
+def get_dominated_symbols(symbols_data: pd.DataFrame) -> list:
+    """Dominated Symbols"""
 
     dominated_data = symbols_data.copy()
     dominated_symbols = list(dominated_data["symbol"])
@@ -153,22 +153,30 @@ def load_dominated_data(symbols_data: pd.DataFrame) -> pd.DataFrame:
             elif return1 > return2 and risk1 < risk2 and symbol2 in dominated_symbols:
                 dominated_symbols.remove(symbol2)
 
-    dominated_data = dominated_data[dominated_data["symbol"].isin(dominated_symbols)]
-    dominated_data.sort_values(
-        by=["cluster", "return"], ascending=[True, False], inplace=True
-    )
-    dominated_data.reset_index(drop=True, inplace=True)
-    return dominated_data
+    # dominated_data = dominated_data[dominated_data["symbol"].isin(dominated_symbols)]
+    # dominated_data.sort_values(
+    #     by=["cluster", "return"], ascending=[True, False], inplace=True
+    # )
+    # dominated_data.reset_index(drop=True, inplace=True)
+    return dominated_symbols
 
 
-def load_ew_portfolio(df: pd.DataFrame) -> pd.DataFrame:
-    portfolio_df = df[["symbol"]].copy()
-    portfolio_df["weight"] = 1 / portfolio_df.shape[0]
+def select_symbols(df: pd.DataFrame, model: str) -> pd.DataFrame:
+    match model:
+        case "ew":
+            portfolio_df = df[["symbol"]].copy()
+            portfolio_df["weight"] = 1 / portfolio_df.shape[0]
+        case "max_return":
+            pass
     return portfolio_df
 
 
-def load_portfolio(close_data: pd.DataFrame, model: str) -> pd.DataFrame:
+def calculate_portfolio(close_data: pd.DataFrame, model: str) -> pd.DataFrame:
     match model:
+        # Equal Weighted
+        # case "ew":
+        #     cleaned_weights =
+        # Mean Variance Max Sharpe
         case "mv":
             m = mean_historical_return(close_data)
             s = sample_cov(
@@ -176,21 +184,110 @@ def load_portfolio(close_data: pd.DataFrame, model: str) -> pd.DataFrame:
             )  # s = CovarianceShrinkage(close_df).ledoit_wolf()
             md = EfficientFrontier(m, s)
             weights = md.max_sharpe()
+            cleaned_weights = dict(md.clean_weights())
+            md.portfolio_performance(verbose=True)
+        # Hierarchical Risk Parity
         case "hrp":
             returns = close_data.pct_change().dropna()
             md = HRPOpt(returns)
             weights = md.optimize()
+            cleaned_weights = dict(md.clean_weights())
+            md.portfolio_performance(verbose=True)
+        # mCVAR
         case "mcvar":
             m = mean_historical_return(close_data)
             s = close_data.cov()
             md = EfficientCVaR(m, s)
             weights = md.min_cvar()
+            cleaned_weights = dict(md.clean_weights())
+            md.portfolio_performance(verbose=True)
+        # Sparse
+        case "sparse":
+            # Extract the columns of interest
+            symbols = close_data["symbol"]
+            returns = close_data["future_return"].to_numpy()
+            risks = close_data["future_risk"].to_numpy()
 
+            # Define the portfolio risk function
+            def portfolio_risk(w):
+                return 0.5 * w.T @ np.diag(risks) @ w
+
+            # Define the portfolio return function
+            def portfolio_return(w):
+                return w.T @ returns
+
+            # Define the gradient of the portfolio risk function
+            def portfolio_risk_grad(w):
+                return np.diag(risks) @ w
+
+            # Define the projection onto the simplex
+            def project_simplex(w):
+                u = np.sort(w)[::-1]
+                cssv = np.cumsum(u)
+                rho = np.nonzero(u * np.arange(1, len(u) + 1) > (cssv - 1))[0][-1]
+                theta = (cssv[rho] - 1) / (rho + 1.0)
+                return np.maximum(w - theta, 0)
+
+            # Define the thresholding operator
+            def threshold(w, k):
+                idx = np.argsort(w)[::-1][:k]
+                w_new = np.zeros_like(w)
+                w_new[idx] = w[idx]
+                return w_new
+
+            # Set the number of non-zero weights (e.g. 10)
+            k = 10
+            # Set the target portfolio return (e.g. 0.05)
+            r = 0.001
+            # Set the initial portfolio weights (e.g. uniform)
+            w = np.ones(len(symbols)) / len(symbols)
+            # Set the step size for gradient descent (e.g. 0.01)
+            alpha = 0.01
+            # Set the tolerance for convergence (e.g. 1e-6)
+            tol = 1e-6
+            # Set the maximum number of iterations (e.g. 1000)
+            max_iter = 10000
+            # Initialize the iteration counter and the convergence flag
+            iter = 0
+            converged = False
+            # Run the algorithm until convergence or maximum iterations
+            while not converged and iter < max_iter:
+                # Save the current weights
+                w_old = w.copy()
+                # Update the weights using gradient descent
+                w = w - alpha * portfolio_risk_grad(w)
+                # Project the weights onto the simplex
+                w = project_simplex(w)
+                # Threshold the weights to enforce sparsity
+                w = threshold(w, k)
+                # Check the portfolio return constraint
+                if portfolio_return(w) < r:
+                    # If violated, reset the weights to the previous ones
+                    w = w_old.copy()
+                    # Reduce the step size
+                    alpha = alpha / 2
+                # Increment the iteration counter
+                iter += 1
+                # Check the convergence criterion
+                if np.linalg.norm(w - w_old) < tol:
+                    # If satisfied, set the convergence flag to True
+                    converged = True
+            # Get the portfolio return and risk
+            portfolio_return = portfolio_return(w)
+            portfolio_risk = portfolio_risk(w)
+            # Print the results
+            print("The optimal sparse portfolio consists of the following stocks:")
+            cleaned_weights = {}
+            for i in range(len(symbols)):
+                if w[i] > 0:
+                    print(f"{symbols[i]}: {w[i]:.2f}")
+                    cleaned_weights[symbols[i]] = round(w[i], 5)
+            print(
+                f"The portfolio return is {portfolio_return:.4f} and the portfolio risk is {portfolio_risk:.4f}"
+            )
         case _:
             raise ValueError("Wrong model entered.")
 
-    cleaned_weights = dict(md.clean_weights())
-    md.portfolio_performance(verbose=True)
     portfolio_data = dp.get_portfolio_from_dict(dict(cleaned_weights))
     return portfolio_data
 
