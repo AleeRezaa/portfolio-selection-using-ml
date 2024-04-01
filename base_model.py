@@ -47,28 +47,22 @@ def main() -> None:
         "portfolio_return": [],
         "portfolio_risk": [],
         "sharpe_ratio": [],
+        "weights": [],
     }
 
     # Clustering Model
     # TODO: Add a KPI to measure how much the model worked
     for clustering_method in CLUSTERING_METHODS:
-        print(f"🔵🔵🔵🔵 clustering_method: {clustering_method}")
-
         clusters_df = mc.load_clusters_data(return_df, model=clustering_method)
         clusters_number = clusters_df["cluster"].unique().shape[0]
-
         processed_df = historical_df.merge(clusters_df, on="symbol")
-
         performance_df = future_df[["symbol", "date", "close", "return"]]
-
         risk_return_df = mc.calculate_risk_return(processed_df, rf=RF)
         aggregated_df = clusters_df.merge(risk_return_df, on="symbol")
 
         for use_domination in USE_DOMINATION:
-            print(f"🔵🔵🔵 use_domination: {use_domination}")
 
             for symbol_selection_method in SYMBOL_SELECTION_METHODS:
-                print(f"🔵🔵 symbol_selection_method: {symbol_selection_method}")
                 selected_symbols = mc.select_symbols(
                     aggregated_df,
                     model=symbol_selection_method,
@@ -82,10 +76,6 @@ def main() -> None:
                 # TODO: CAPM Model, Black-Litterman allocation, etc
                 # TODO: long and short? weight_bounds=(-1, 1)
                 for portfolio_selection_method in PORTFOLIO_SELECTION_METHODS:
-                    print(
-                        f"🔵 portfolio_selection_method: {portfolio_selection_method}"
-                    )
-
                     portfolio_df = mc.calculate_portfolio(
                         selected_processed_df, portfolio_selection_method
                     )
@@ -93,9 +83,6 @@ def main() -> None:
                         mc.get_portfolio_performance(
                             portfolio_df, performance_df, rf=RF
                         )
-                    )
-                    print(
-                        f"🟢 The Sharpe Ratio for your portfolio is {sharpe_ratio:.2f}."
                     )
 
                     result_dict["clustering_method"].append(clustering_method)
@@ -109,6 +96,11 @@ def main() -> None:
                     result_dict["portfolio_return"].append(portfolio_return)
                     result_dict["portfolio_risk"].append(portfolio_risk)
                     result_dict["sharpe_ratio"].append(sharpe_ratio)
+                    result_dict["weights"].append(
+                        pd.Series(
+                            portfolio_df["weight"].values, index=portfolio_df["symbol"]
+                        ).to_dict()
+                    )
 
     result_df = pd.DataFrame.from_dict(result_dict)
     result_df.to_excel(RESULT_PATH, index=False)
