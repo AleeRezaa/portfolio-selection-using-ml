@@ -13,7 +13,7 @@ def main() -> None:
     CLUSTERING_METHODS = ["affinity_propagation"]
     USE_DOMINATION = [True, False]
     SYMBOL_SELECTION_METHODS = ["keep_all", "max_return", "min_risk", "max_sharpe"]
-    PORTFOLIO_SELECTION_METHODS = ["ew", "mv", "hrp", "mcvar"]
+    PORTFOLIO_SELECTION_METHODS = ["ew", "mv", "hrp", "mcvar", "sparse"]
 
     # Load Data
 
@@ -42,7 +42,7 @@ def main() -> None:
     # Clustering Model
     # TODO: Add a KPI to measure how much the model worked
     for clustering_method in CLUSTERING_METHODS:
-        print(f"clustering_method: {clustering_method}")
+        print(f"🔵🔵🔵🔵 clustering_method: {clustering_method}")
 
         clusters_df = mc.load_clusters_data(return_df, model=clustering_method)
         clusters_number = clusters_df["cluster"].unique().shape[0]
@@ -55,10 +55,10 @@ def main() -> None:
         aggregated_df = clusters_df.merge(risk_return_df, on="symbol")
 
         for use_domination in USE_DOMINATION:
-            print(f"use_domination: {use_domination}")
+            print(f"🔵🔵🔵 use_domination: {use_domination}")
 
             for symbol_selection_method in SYMBOL_SELECTION_METHODS:
-                print(f"symbol_selection_method: {symbol_selection_method}")
+                print(f"🔵🔵 symbol_selection_method: {symbol_selection_method}")
                 selected_symbols = mc.select_symbols(
                     aggregated_df,
                     model=symbol_selection_method,
@@ -69,13 +69,12 @@ def main() -> None:
                 ].copy()
 
                 # Portfolio Selection
-                # TODO: Use clustering models like HRP
-                # TODO: Add CAPM Model
-                # TODO: Add Black-Litterman allocation?
+                # TODO: CAPM Model, Black-Litterman allocation, etc
                 # TODO: long and short? weight_bounds=(-1, 1)
-                # TODO: non-covariance models: sparse portfolio, minimum variance portfolio, etc
                 for portfolio_selection_method in PORTFOLIO_SELECTION_METHODS:
-                    print(f"portfolio_selection_method: {portfolio_selection_method}")
+                    print(
+                        f"🔵 portfolio_selection_method: {portfolio_selection_method}"
+                    )
 
                     portfolio_df = mc.calculate_portfolio(
                         selected_processed_df, portfolio_selection_method
@@ -83,7 +82,9 @@ def main() -> None:
                     sharpe_ratio = mc.get_portfolio_performance(
                         portfolio_df, performance_df, rf=RF
                     )
-                    print(f"The Sharpe Ratio for your portfolio is {sharpe_ratio:.2f}.")
+                    print(
+                        f"🟢 The Sharpe Ratio for your portfolio is {sharpe_ratio:.2f}."
+                    )
 
 
 if __name__ == "__main__":
