@@ -1,5 +1,5 @@
 from os import mkdir, path
-
+import pandas as pd
 from src import data_preparation as dp
 from src import model_calculation as mc
 
@@ -9,6 +9,7 @@ def main() -> None:
     FUTURE_DAYS = 60
     SYMBOLS = 20
     RF = 0
+    RESULT_PATH = "./data/result.xlsx"
 
     CLUSTERING_METHODS = ["affinity_propagation"]
     USE_DOMINATION = [True, False]
@@ -38,6 +39,15 @@ def main() -> None:
     return_df = dp.load_return_data(historical_df)
 
     # Execute Model
+    result_dict = {
+        "clustering_method": [],
+        "use_domination": [],
+        "symbol_selection_method": [],
+        "portfolio_selection_method": [],
+        "portfolio_return": [],
+        "portfolio_risk": [],
+        "sharpe_ratio": [],
+    }
 
     # Clustering Model
     # TODO: Add a KPI to measure how much the model worked
@@ -79,12 +89,29 @@ def main() -> None:
                     portfolio_df = mc.calculate_portfolio(
                         selected_processed_df, portfolio_selection_method
                     )
-                    sharpe_ratio = mc.get_portfolio_performance(
-                        portfolio_df, performance_df, rf=RF
+                    portfolio_return, portfolio_risk, sharpe_ratio = (
+                        mc.get_portfolio_performance(
+                            portfolio_df, performance_df, rf=RF
+                        )
                     )
                     print(
                         f"🟢 The Sharpe Ratio for your portfolio is {sharpe_ratio:.2f}."
                     )
+
+                    result_dict["clustering_method"].append(clustering_method)
+                    result_dict["use_domination"].append(use_domination)
+                    result_dict["symbol_selection_method"].append(
+                        symbol_selection_method
+                    )
+                    result_dict["portfolio_selection_method"].append(
+                        portfolio_selection_method
+                    )
+                    result_dict["portfolio_return"].append(portfolio_return)
+                    result_dict["portfolio_risk"].append(portfolio_risk)
+                    result_dict["sharpe_ratio"].append(sharpe_ratio)
+
+    result_df = pd.DataFrame.from_dict(result_dict)
+    result_df.to_excel(RESULT_PATH, index=False)
 
 
 if __name__ == "__main__":

@@ -286,30 +286,19 @@ def calculate_portfolio(df: pd.DataFrame, model: str) -> pd.DataFrame:
 
 def get_portfolio_performance(
     portfolio_data: pd.DataFrame, performance_data: pd.DataFrame, rf: float = 0
-) -> float:
+) -> tuple[float, float, float]:
     performance_data = performance_data.sort_values("date")
     performance_data = performance_data[
         performance_data["symbol"].isin(portfolio_data["symbol"].unique())
     ]
 
-    # Calculate the daily returns of each symbol
     returns_df = performance_data.pivot(
         index="date", columns="symbol", values="close"
     ).pct_change()
-
-    # Calculate the weighted average daily return of the portfolio
     weights = portfolio_data.set_index("symbol")["weight"]
     portfolio_returns = (returns_df * weights).sum(axis=1)
-
-    # Calculate the daily excess return of the portfolio
     excess_returns = portfolio_returns - rf
-
-    # Calculate the covariance matrix of the daily returns of the symbols in the portfolio
     covariance_matrix = returns_df.cov()
-
-    # Calculate the standard deviation of the daily excess returns of the portfolio using the covariance matrix
     excess_returns_std = np.sqrt(np.dot(weights.T, np.dot(covariance_matrix, weights)))
-
-    # Calculate the Sharpe ratio of the portfolio
     sharpe_ratio = excess_returns.mean() / excess_returns_std
-    return sharpe_ratio
+    return excess_returns.mean(), excess_returns_std, sharpe_ratio
