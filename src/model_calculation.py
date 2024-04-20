@@ -7,9 +7,11 @@ from pypfopt import HRPOpt
 from pypfopt.efficient_frontier import EfficientCVaR, EfficientFrontier
 from pypfopt.expected_returns import mean_historical_return
 from pypfopt.risk_models import CovarianceShrinkage, sample_cov
-from sklearn import cluster, covariance, linear_model
+from sklearn import covariance, linear_model
+from sklearn.cluster import affinity_propagation, KMeans
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import r2_score
+from sklearn.metrics import r2_score, silhouette_score
+from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 
 import src.data_preparation as dp
@@ -33,7 +35,7 @@ def affinity_propagation_model(return_data: pd.DataFrame) -> pd.DataFrame:
     # create clustering modol
     edge_model = covariance.GraphicalLassoCV()
     edge_model.fit(clustering_data)
-    cluster_centers_indices, labels = cluster.affinity_propagation(
+    cluster_centers_indices, labels = affinity_propagation(
         edge_model.covariance_, random_state=1
     )
     n = labels.max() + 1
@@ -56,12 +58,44 @@ def affinity_propagation_model(return_data: pd.DataFrame) -> pd.DataFrame:
     return clusters_data
 
 
+def k_means_model(return_data: pd.DataFrame) -> pd.DataFrame:
+    return_data_t = return_data.T
+    scaler = StandardScaler()
+    standardized_data = scaler.fit_transform(return_data_t)
+
+    # Find optimal number of clusters using Silhouette Score
+    silhouette_scores = []
+    max_clusters = min(
+        10, len(return_data_t.columns)
+    )  # Limit to avoid excessive clusters
+    for k in range(2, max_clusters + 1):
+        kmeans = KMeans(n_clusters=k, random_state=42)
+        kmeans.fit(standardized_data)
+        silhouette_scores.append(silhouette_score(standardized_data, kmeans.labels_))
+
+    # Choose the number of clusters with the highest silhouette score
+    optimal_clusters = (
+        silhouette_scores.index(max(silhouette_scores)) + 2
+    )  # Add 2 due to range start
+
+    # Fit K-Means model with optimal number of clusters
+    kmeans = KMeans(n_clusters=optimal_clusters, random_state=42)
+    kmeans.fit(standardized_data)
+
+    # Add cluster labels to the original DataFrame
+    return_data_t["cluster"] = kmeans.labels_
+    clusters_data = pd.DataFrame(return_data_t["cluster"]).reset_index(names="symbol")
+    return clusters_data
+
+
 def load_clusters_data(return_data: pd.DataFrame, model: str) -> pd.DataFrame:
     """Clusters Data"""
 
     match model:
         case "affinity_propagation":
             clusters_data = affinity_propagation_model(return_data)
+        case "k_means":
+            clusters_data = k_means_model(return_data)
         case _:
             raise ValueError("Wrong model entered.")
 
