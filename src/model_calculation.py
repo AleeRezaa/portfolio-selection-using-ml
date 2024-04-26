@@ -9,6 +9,7 @@ from pypfopt.expected_returns import mean_historical_return
 from pypfopt.risk_models import CovarianceShrinkage, sample_cov
 from sklearn import covariance, linear_model
 from sklearn.cluster import affinity_propagation, KMeans
+from sklearn_extra.cluster import KMedoids
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import r2_score, silhouette_score
 from sklearn.preprocessing import StandardScaler
@@ -88,6 +89,36 @@ def k_means_model(return_data: pd.DataFrame) -> pd.DataFrame:
     return clusters_data
 
 
+def k_medoids_model(return_data: pd.DataFrame) -> pd.DataFrame:
+    return_data_t = return_data.T
+    scaler = StandardScaler()
+    standardized_data = scaler.fit_transform(return_data_t)
+
+    # Find optimal number of clusters using Silhouette Score
+    silhouette_scores = []
+    max_clusters = min(
+        10, len(return_data_t.columns)
+    )  # Limit to avoid excessive clusters
+    for k in range(2, max_clusters + 1):
+        kmedoids = KMedoids(n_clusters=k, random_state=42)
+        kmedoids.fit(standardized_data)
+        silhouette_scores.append(silhouette_score(standardized_data, kmedoids.labels_))
+
+    # Choose the number of clusters with the highest silhouette score
+    optimal_clusters = (
+        silhouette_scores.index(max(silhouette_scores)) + 2
+    )  # Add 2 due to range start
+
+    # Fit K-Medoids model with optimal number of clusters
+    kmedoids = KMedoids(n_clusters=optimal_clusters, random_state=42)
+    kmedoids.fit(standardized_data)
+
+    # Add cluster labels to the original DataFrame
+    return_data_t["cluster"] = kmedoids.labels_
+    clusters_data = pd.DataFrame(return_data_t["cluster"]).reset_index(names="symbol")
+    return clusters_data
+
+
 def load_clusters_data(return_data: pd.DataFrame, model: str) -> pd.DataFrame:
     """Clusters Data"""
 
@@ -96,6 +127,8 @@ def load_clusters_data(return_data: pd.DataFrame, model: str) -> pd.DataFrame:
             clusters_data = affinity_propagation_model(return_data)
         case "k_means":
             clusters_data = k_means_model(return_data)
+        case "k_medoids":
+            clusters_data = k_medoids_model(return_data)
         case _:
             raise ValueError("Wrong model entered.")
 

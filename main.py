@@ -13,7 +13,7 @@ def main() -> None:
     RF = 0
     RESULT_PATH = "./data/result.xlsx"
 
-    CLUSTERING_METHODS = ["affinity_propagation", "k_means"]
+    CLUSTERING_METHODS = ["affinity_propagation", "k_means", "k_medoids"]
     USE_DOMINATION = [True, False]
     SYMBOL_SELECTION_METHODS = ["keep_all", "max_return", "min_risk", "max_sharpe"]
     PORTFOLIO_SELECTION_METHODS = ["ew", "mv", "hrp", "mcvar", "sparse"]
