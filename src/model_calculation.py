@@ -304,9 +304,11 @@ def sparse_portfolio(risk_return_data: pd.DataFrame):
     return cleaned_weights
 
 
-def calculate_portfolio(df: pd.DataFrame, model: str) -> pd.DataFrame:
+def calculate_portfolio(
+    df: pd.DataFrame, model: str, sparse_rf: float = 0
+) -> pd.DataFrame:
     if model == "sparse":
-        risk_return_data = calculate_risk_return(df, rf=0)
+        risk_return_data = calculate_risk_return(df, rf=sparse_rf)
     else:
         close_data = dp.load_close_data(df)
 
