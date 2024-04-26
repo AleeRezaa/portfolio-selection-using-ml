@@ -67,7 +67,7 @@ def k_means_model(return_data: pd.DataFrame) -> pd.DataFrame:
     # Find optimal number of clusters using Silhouette Score
     silhouette_scores = []
     max_clusters = min(
-        10, len(return_data_t.columns)
+        10, len(return_data.columns) - 1
     )  # Limit to avoid excessive clusters
     for k in range(2, max_clusters + 1):
         kmeans = KMeans(n_clusters=k, random_state=42)
@@ -97,7 +97,7 @@ def k_medoids_model(return_data: pd.DataFrame) -> pd.DataFrame:
     # Find optimal number of clusters using Silhouette Score
     silhouette_scores = []
     max_clusters = min(
-        10, len(return_data_t.columns)
+        10, len(return_data.columns) - 1
     )  # Limit to avoid excessive clusters
     for k in range(2, max_clusters + 1):
         kmedoids = KMedoids(n_clusters=k, random_state=42)
