@@ -11,12 +11,14 @@ def main() -> None:
     FUTURE_DAYS = 60
     SYMBOLS = 20
     RF = 0
-    RESULT_PATH = "./data/result.xlsx"
 
     CLUSTERING_METHODS = ["affinity_propagation", "k_means", "k_medoids"]
     USE_DOMINATION = [True, False]
     SYMBOL_SELECTION_METHODS = ["keep_all", "max_return", "min_risk", "max_sharpe"]
     PORTFOLIO_SELECTION_METHODS = ["ew", "mv", "hrp", "mcvar", "sparse"]
+
+    RESULT_PATH = "./data/result.xlsx"
+    COMPACT_RESULT_PATH = "./data/compact_result.xlsx"
 
     # Load Data
 
@@ -41,22 +43,14 @@ def main() -> None:
     return_df = dp.load_return_data(historical_df)
 
     # Execute Model
-    result_dict = {
-        "clustering_method": [],
-        "use_domination": [],
-        "symbol_selection_method": [],
-        "portfolio_selection_method": [],
-        "portfolio_return": [],
-        "portfolio_risk": [],
-        "sharpe_ratio": [],
-        "weights": [],
-    }
+    result_df = pd.DataFrame()
+    model_id = 0
 
     # Clustering Model
     # TODO: Add a KPI to measure how much the model worked
     for clustering_method in CLUSTERING_METHODS:
         clusters_df = mc.load_clusters_data(return_df, model=clustering_method)
-        clusters_number = clusters_df["cluster"].unique().shape[0]
+        # clusters_number = clusters_df["cluster"].unique().shape[0]
         processed_df = historical_df.merge(clusters_df, on="symbol")
         performance_df = future_df[["symbol", "date", "close", "return"]]
         risk_return_df = mc.calculate_risk_return(processed_df, rf=RF)
@@ -79,33 +73,43 @@ def main() -> None:
                 # TODO: long and short? weight_bounds=(-1, 1)
                 for portfolio_selection_method in PORTFOLIO_SELECTION_METHODS:
                     portfolio_df = mc.calculate_portfolio(
-                        selected_processed_df, portfolio_selection_method
+                        selected_processed_df,
+                        model=portfolio_selection_method,
+                        sparse_rf=RF,
                     )
+
                     portfolio_return, portfolio_risk, sharpe_ratio = (
                         mc.get_portfolio_performance(
                             portfolio_df, performance_df, rf=RF
                         )
                     )
 
-                    result_dict["clustering_method"].append(clustering_method)
-                    result_dict["use_domination"].append(use_domination)
-                    result_dict["symbol_selection_method"].append(
-                        symbol_selection_method
+                    result_model_df = portfolio_df.merge(clusters_df)
+                    result_model_df.insert(0, "model_id", model_id)
+                    result_model_df.insert(1, "clustering_method", clustering_method)
+                    result_model_df.insert(2, "use_domination", use_domination)
+                    result_model_df.insert(
+                        3, "symbol_selection_method", symbol_selection_method
                     )
-                    result_dict["portfolio_selection_method"].append(
-                        portfolio_selection_method
+                    result_model_df.insert(
+                        4, "portfolio_selection_method", portfolio_selection_method
                     )
-                    result_dict["portfolio_return"].append(portfolio_return)
-                    result_dict["portfolio_risk"].append(portfolio_risk)
-                    result_dict["sharpe_ratio"].append(sharpe_ratio)
-                    result_dict["weights"].append(
-                        pd.Series(
-                            portfolio_df["weight"].values, index=portfolio_df["symbol"]
-                        ).to_dict()
-                    )
+                    result_model_df.insert(5, "portfolio_return", portfolio_return)
+                    result_model_df.insert(6, "portfolio_risk", portfolio_risk)
+                    result_model_df.insert(7, "sharpe_ratio", sharpe_ratio)
 
-    result_df = pd.DataFrame.from_dict(result_dict)
+                    result_df = pd.concat([result_df, result_model_df])
+                    model_id += 1
+
+    compact_result_df = (
+        result_df.groupby(by="model_id")
+        .first()
+        .reset_index()
+        .loc[:, "model_id":"sharpe_ratio"]
+        .sort_values(by="sharpe_ratio")
+    )
     result_df.to_excel(RESULT_PATH, index=False)
+    compact_result_df.to_excel(COMPACT_RESULT_PATH, index=False)
 
 
 if __name__ == "__main__":
