@@ -7,11 +7,11 @@ from src import model_calculation as mc
 
 
 def main() -> None:
-    FUTURE_DAYS = 60
-    SYMBOLS = 20
+    FUTURE_DAYS = 30
+    SYMBOLS = 40
     RF = 0
 
-    END_DATES = ["2020-01-01", "2021-01-01", "2022-01-01", "2023-01-01", "2024-01-01"]
+    END_DATES = ["2024-01-01", "2024-02-01", "2024-03-01", "2024-04-01"]
     CLUSTERING_METHODS = ["affinity_propagation", "k_means", "k_medoids"]
     USE_DOMINATION = [True, False]
     SYMBOL_SELECTION_METHODS = ["keep_all", "max_return", "min_risk", "max_sharpe"]
@@ -21,7 +21,7 @@ def main() -> None:
     COMPACT_RESULT_PATH = "./data/compact_result.xlsx"
 
     result_df = pd.DataFrame()
-    model_id = 0
+    id = 0
 
     # Load Data
 
@@ -87,34 +87,48 @@ def main() -> None:
                             )
                         )
 
+                        model_name = f"{clustering_method}/{use_domination}/{symbol_selection_method}/{portfolio_selection_method}"
                         result_model_df = portfolio_df.merge(clusters_df)
-                        result_model_df.insert(0, "model_id", model_id)
+                        result_model_df.insert(0, "id", id)
                         result_model_df.insert(1, "end_date", end_date)
+                        result_model_df.insert(2, "model_name", model_name)
                         result_model_df.insert(
-                            2, "clustering_method", clustering_method
+                            3, "clustering_method", clustering_method
                         )
-                        result_model_df.insert(3, "use_domination", use_domination)
+                        result_model_df.insert(4, "use_domination", use_domination)
                         result_model_df.insert(
-                            4, "symbol_selection_method", symbol_selection_method
+                            5, "symbol_selection_method", symbol_selection_method
                         )
                         result_model_df.insert(
-                            5, "portfolio_selection_method", portfolio_selection_method
+                            6, "portfolio_selection_method", portfolio_selection_method
                         )
-                        result_model_df.insert(6, "portfolio_return", portfolio_return)
-                        result_model_df.insert(7, "portfolio_risk", portfolio_risk)
-                        result_model_df.insert(8, "sharpe_ratio", sharpe_ratio)
+                        result_model_df.insert(7, "portfolio_return", portfolio_return)
+                        result_model_df.insert(8, "portfolio_risk", portfolio_risk)
+                        result_model_df.insert(9, "sharpe_ratio", sharpe_ratio)
 
                         result_df = pd.concat([result_df, result_model_df])
-                        model_id += 1
+                        id += 1
+
+        result_df.to_excel(RESULT_PATH, index=False)
 
         compact_result_df = (
-            result_df.groupby(by="model_id")
+            result_df.groupby(by="id")
             .first()
             .reset_index()
-            .loc[:, "model_id":"sharpe_ratio"]
+            .loc[:, "model_name":"sharpe_ratio"]
+            .groupby(
+                by=[
+                    "model_name",
+                    "clustering_method",
+                    "use_domination",
+                    "symbol_selection_method",
+                    "portfolio_selection_method",
+                ]
+            )
+            .mean()
+            .reset_index()
             .sort_values(by="sharpe_ratio", ascending=False)
         )
-        result_df.to_excel(RESULT_PATH, index=False)
         compact_result_df.to_excel(COMPACT_RESULT_PATH, index=False)
 
 
