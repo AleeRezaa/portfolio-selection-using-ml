@@ -7,15 +7,20 @@ from src import model_calculation as mc
 
 
 def main() -> None:
-    FUTURE_DAYS = 30
+    HISTORY_DAYS = 360
+    FUTURE_DAYS = 60
     SYMBOLS = 40
     RF = 0
+    UPDATE_HISTORY = False
 
-    END_DATES = ["2024-01-01", "2024-02-01", "2024-03-01", "2024-04-01"]
     CLUSTERING_METHODS = ["affinity_propagation", "k_means", "k_medoids"]
     USE_DOMINATION = [True, False]
-    SYMBOL_SELECTION_METHODS = ["keep_all", "max_return", "min_risk", "max_sharpe"]
-    PORTFOLIO_SELECTION_METHODS = ["ew", "mv", "hrp", "mcvar", "sparse"]
+    SYMBOL_SELECTION_METHODS = ["max_return", "min_risk", "max_sharpe", "keep_all"]
+    PORTFOLIO_SELECTION_METHODS = ["ew", "mv", "mcvar", "hrp", "sparse"]
+    END_DATES = [
+        str(x)[:10]
+        for x in pd.date_range(start="2021-01-01", end="2024-03-01", freq="2MS")
+    ]
 
     RESULT_PATH = "./data/result.xlsx"
     COMPACT_RESULT_PATH = "./data/compact_result.xlsx"
@@ -30,19 +35,19 @@ def main() -> None:
 
     basic_df = dp.load_basic_data(
         selected_symbols=SYMBOLS,
-        max_date_added_year=2020,
-        min_last_update_year=2023,
+        max_date_added_year=2018,
+        min_last_update_year=2024,
         min_market_pairs=6,
-        update=False,
+        update=UPDATE_HISTORY,
     )
 
     symbols_list = basic_df["symbol"].to_list()
-    historical_df = dp.load_historical_data(symbols_list, update=False)
+    historical_df = dp.load_historical_data(symbols_list, update=UPDATE_HISTORY)
 
     for end_date in END_DATES:
         history_df, future_df = dp.filter_historical_data(
             historical_df,
-            selected_days=1460,
+            selected_days=HISTORY_DAYS,
             future_days=FUTURE_DAYS,
             end_date=end_date,
         )
@@ -75,6 +80,9 @@ def main() -> None:
                     # TODO: CAPM Model, Black-Litterman allocation, etc
                     # TODO: long and short? weight_bounds=(-1, 1)
                     for portfolio_selection_method in PORTFOLIO_SELECTION_METHODS:
+                        model_name = f"{clustering_method}/{use_domination}/{symbol_selection_method}/{portfolio_selection_method}"
+                        print(f"\n\n{end_date}/{model_name}")
+
                         portfolio_df = mc.calculate_portfolio(
                             selected_processed_df,
                             model=portfolio_selection_method,
@@ -87,7 +95,6 @@ def main() -> None:
                             )
                         )
 
-                        model_name = f"{clustering_method}/{use_domination}/{symbol_selection_method}/{portfolio_selection_method}"
                         result_model_df = portfolio_df.merge(clusters_df)
                         result_model_df.insert(0, "id", id)
                         result_model_df.insert(1, "end_date", end_date)
