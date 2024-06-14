@@ -325,24 +325,36 @@ def calculate_portfolio(
                 close_data
             )  # s = CovarianceShrinkage(close_df).ledoit_wolf()
             md = EfficientFrontier(m, s)
-            weights = md.max_sharpe()
-            cleaned_weights = dict(md.clean_weights())
-            md.portfolio_performance(verbose=True)
-        # Hierarchical Risk Parity
-        case "hrp":
-            returns = close_data.pct_change().dropna()
-            md = HRPOpt(returns)
-            weights = md.optimize()
-            cleaned_weights = dict(md.clean_weights())
-            md.portfolio_performance(verbose=True)
+            try:
+                weights = md.max_sharpe()
+            except:
+                cleaned_weights = dict()
+            else:
+                cleaned_weights = dict(md.clean_weights())
+                md.portfolio_performance(verbose=True)
         # mCVAR
         case "mcvar":
             m = mean_historical_return(close_data)
             s = close_data.cov()
             md = EfficientCVaR(m, s)
-            weights = md.min_cvar()
-            cleaned_weights = dict(md.clean_weights())
-            md.portfolio_performance(verbose=True)
+            try:
+                weights = md.min_cvar()
+            except:
+                cleaned_weights = dict()
+            else:
+                cleaned_weights = dict(md.clean_weights())
+                md.portfolio_performance(verbose=True)
+        # Hierarchical Risk Parity
+        case "hrp":
+            returns = close_data.pct_change().dropna()
+            md = HRPOpt(returns)
+            try:
+                weights = md.optimize()
+            except:
+                cleaned_weights = dict()
+            else:
+                cleaned_weights = dict(md.clean_weights())
+                md.portfolio_performance(verbose=True)
         # Sparse
         case "sparse":
             cleaned_weights = sparse_portfolio(risk_return_data)
